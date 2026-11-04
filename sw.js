@@ -1,5 +1,5 @@
 /* 字消云散 · Service Worker：缓存全部文件，支持离线游玩 */
-const CACHE = 'zixiaoyunsan-v1';   // 每次发布新版改这里，旧缓存会在 activate 时清掉
+const CACHE = 'zixiaoyunsan-v2';   // 每次发布新版改这里，旧缓存会在 activate 时清掉
 const ASSETS = [
   './',
   './index.html',
