@@ -1,5 +1,5 @@
 /* 字消云散 · Service Worker：缓存全部文件，支持离线游玩 */
-const CACHE = 'zixiaoyunsan-v3';   // 每次发布新版改这里，旧缓存会在 activate 时清掉
+const CACHE = 'zixiaoyunsan-v4';   // 每次发布新版改这里，旧缓存会在 activate 时清掉
 const ASSETS = [
   './',
   './index.html',
@@ -7,7 +7,8 @@ const ASSETS = [
   './manifest.json',
   './icons/apple-touch-icon.png',
   './icons/icon-192.png',
-  './icons/icon-512.png'
+  './icons/icon-512.png',
+  './fonts/wenkai-sub.woff2'
 ];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS.map(u => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting()));
