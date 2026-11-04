@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>字消云散</title>
-<meta name="description" content="字消云散：汉字消消乐，点字连成成语、词语、诗句即可消除。可离线游玩。">
-<meta name="theme-color" content="#f3efe6">
+<meta name="description" content="字消云散：水墨中国风成语消除。点开没被压住的半词牌放进字槽，前后两半凑成成语即消除。可离线游玩。">
+<meta name="theme-color" content="#efe6d2">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -15,7 +15,7 @@
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
 <style>
-html,body{margin:0;padding:0;height:100%;background:#f3efe6;overflow:hidden;position:fixed;inset:0;
+html,body{margin:0;padding:0;height:100%;background:#efe6d2;overflow:hidden;position:fixed;inset:0;
   overscroll-behavior:none;touch-action:none;-webkit-user-select:none;user-select:none;
   -webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%}
 canvas{display:block;position:fixed;
@@ -29,391 +29,326 @@ canvas{display:block;position:fixed;
 <canvas id="c"></canvas>
 <script src="./data.js"></script>
 <script>
-/* 字消云散 —— 受同类汉字消除玩法启发的非官方作品，与任何商业游戏无关；全部图形、音效由代码生成，题库为本项目自行整理 */
+/* 字消云散 v3 —— 受「半词牌叠层消除」类玩法启发的非官方作品，与任何商业游戏无关；全部图形、音效由代码生成，题库为本项目自行整理 */
 (() => {
 'use strict';
 const cv = document.getElementById('c');
 let ctx = cv.getContext('2d');
 const FONT = '"PingFang SC","Microsoft YaHei","Noto Sans CJK SC","Noto Sans SC","WenQuanYi Micro Hei",sans-serif';
-const KFONT = '"Kaiti SC","STKaiti","KaiTi","Noto Serif CJK SC","Songti SC","STSong",' + FONT;
-// 字块配色（不按答案着色，只按字本身散列，所以颜色不泄露答案）
-const TILE_L = [['#ffe1d2', '#f2b79c'], ['#ffeeb5', '#e9c968'], ['#dff1cf', '#a9d38c'], ['#d3efe9', '#8ccfc2'], ['#d9e8fb', '#9cbfe8'], ['#e4e0fb', '#b2a9ea'], ['#f6dcf2', '#d9a6d1'], ['#ffdbe2', '#eba3b3']];
-const TILE_D = [['#5b4038', '#3e2a24'], ['#5a4f2c', '#3d351c'], ['#3a5233', '#263822'], ['#2f4e4b', '#1f3533'], ['#324866', '#213146'], ['#443d63', '#2e2945'], ['#583e57', '#3d2a3c'], ['#5d3843', '#41252e']];
+const KFONT = '"Kaiti SC","STKaiti","KaiTi","楷体","BiauKai","Kai","Noto Serif CJK SC","Source Han Serif SC","Songti SC","STSong",serif';
+// 中国风配色：日间＝宣纸水墨；夜间＝墨蓝 + 朱砂 + 金
 const THEMES = {
-  light: { bg:'#f3efe6', bg2:'#ebe4d6', board:'#fdfaf4', board2:'#f6f0e4', boardEdge:'rgba(110,90,60,.13)', spot:'rgba(110,90,60,.06)',
-    text:'#2b2d42', sub:'#857d6f', faint:'#b5ab98', card:'#fffdf9', cardEdge:'rgba(43,45,66,.07)', shadow:'rgba(90,70,40,.10)',
-    track:'#e8e0cf', seg:'#e7dfcd', segOn:'#fffdf9', red:'#e63946', redSoft:'rgba(230,57,70,.10)', green:'#2a9d8f', greenSoft:'rgba(42,157,143,.12)', gold:'#f4a261', accent:'#e8603f', accent2:'#f6a04d',
-    accentShadow:'rgba(232,96,63,.28)', panel:'#fffdf9', blue:'#3a86ff', clockBg:'#e7f0ff', dim:'rgba(43,45,66,.45)', tileInk:'#3a2f2a', veil:'rgba(243,239,230,.62)', cover:'#e4dccb', coverEdge:'#cfc4ad', coverLine:'rgba(110,90,60,.35)', topRing:'rgba(255,255,255,.0)',
-    ink:'#2b2d42', inkText:'#ffffff', toast:'rgba(43,45,66,.92)', toastText:'#fff', deco:0.13, slot:'#efe8da',
-    tGood:['#4cc9a4','#2a9d8f'], tMid:['#f9d56e','#f4a261'], tLow:['#ff8a7a','#e63946'], tiles:TILE_L, conf:['#e76f51','#d99a00','#4f9a2c','#17998a','#2f86d0','#4a4fc0','#9447c4','#d64f95'] },
-  dark: { bg:'#191b26', bg2:'#11131b', board:'#272a3a', board2:'#222534', boardEdge:'rgba(255,255,255,.07)', spot:'rgba(255,255,255,.04)',
-    text:'#eceaf3', sub:'#9c9aae', faint:'#5c5f75', card:'#242737', cardEdge:'rgba(255,255,255,.07)', shadow:'rgba(0,0,0,.35)',
-    track:'#33374a', seg:'#2a2d3e', segOn:'#41455e', red:'#ff5a67', redSoft:'rgba(255,90,103,.14)', green:'#3cc2b2', greenSoft:'rgba(60,194,178,.14)', gold:'#ffb36b', accent:'#f06a48', accent2:'#ffa95a',
-    accentShadow:'rgba(240,106,72,.30)', panel:'#242737', blue:'#5b9bff', clockBg:'#1f2b45', dim:'rgba(5,6,12,.6)', tileInk:'#f3ede4', veil:'rgba(25,27,38,.62)', cover:'#33374a', coverEdge:'#24273a', coverLine:'rgba(255,255,255,.22)', topRing:'rgba(255,255,255,.0)',
-    ink:'#eceaf3', inkText:'#1b1d2a', toast:'rgba(236,234,243,.94)', toastText:'#1b1d2a', deco:0.16, slot:'#1d2030',
-    tGood:['#4fd6b2','#2fae9e'], tMid:['#ffd76e','#ffa95a'], tLow:['#ff8a7a','#ff4d5e'], tiles:TILE_D, conf:['#f2876b','#f0b52e','#6fc24c','#2fc2ae','#5aaaf0','#8287f2','#b67de2','#ee77b2'] }
+  light: { bg:'#efe6d2', bg2:'#e2d5b9', ink:'#1e1b17', ink2:'#4a433a', sub:'#7b6f5d', faint:'#a99c84', red:'#b3322a', red2:'#cf4a3b', gold:'#a87f2c', gold2:'#d6b25a',
+    mount:'30,38,40', mist:'239,230,210', sky:null, moon:'#c9473a', moonA:0.18,
+    face:'#fbf7ec', face2:'#efe7d4', side:'#b7a782', edge:'rgba(70,55,30,.35)', tInk:'#17140f',
+    cFace:'#bdb7ab', cFace2:'#aea89b', cSide:'#8a8476', cInk:'#5e5950', hint:'#d6a02a',
+    tray:'#e6d0a0', tray2:'#d5b97f', trayEdge:'#8e6a2f', cell:'rgba(120,85,30,.16)',
+    hold:'rgba(36,32,28,.86)', holdEdge:'rgba(214,178,90,.55)', holdText:'#e9d8a8',
+    panel:'#f6eedc', panel2:'#eadfc4', rod:'#5a3a22', rodCap:'#c9a24a', dim:'rgba(24,20,14,.52)',
+    bang:'#f1d98a', bang2:'#e2c062', bangInk:'#3b2a10', track:'rgba(90,70,40,.18)',
+    btn:'#2a2622', btnInk:'#f4ead2', toast:'rgba(30,27,23,.9)', toastText:'#f4ead2', fret:'rgba(120,85,40,.55)', cloud:'rgba(168,127,44,.30)' },
+  dark: { bg:'#16202f', bg2:'#0b111b', ink:'#efe2c2', ink2:'#cdbf9c', sub:'#8f97a8', faint:'#5b6478', red:'#c9443a', red2:'#e0584a', gold:'#d4ae5c', gold2:'#ecd08a',
+    mount:'5,9,16', mist:'22,32,47', sky:'#1d2a3e', moon:'#efe0b0', moonA:0.9,
+    face:'#ece3cc', face2:'#ddd1b3', side:'#9c8c68', edge:'rgba(0,0,0,.4)', tInk:'#121a26',
+    cFace:'#4a5367', cFace2:'#414a5d', cSide:'#2b3243', cInk:'#8d96aa', hint:'#ecc25a',
+    tray:'#26324a', tray2:'#1c2639', trayEdge:'#c39a4a', cell:'rgba(212,174,92,.16)',
+    hold:'rgba(4,7,12,.78)', holdEdge:'rgba(212,174,92,.45)', holdText:'#e8cf8e',
+    panel:'#1f2a3d', panel2:'#18212f', rod:'#3d2a1a', rodCap:'#d4ae5c', dim:'rgba(2,4,8,.62)',
+    bang:'#3a2d16', bang2:'#2c2210', bangInk:'#efd590', track:'rgba(239,226,194,.14)',
+    btn:'#0c121c', btnInk:'#ecd08a', toast:'rgba(239,226,194,.94)', toastText:'#16202f', fret:'rgba(212,174,92,.5)', cloud:'rgba(212,174,92,.22)' }
 };
 const SAVE_KEY = 'zxys_save';
-let theme = (() => { try { return JSON.parse(localStorage.getItem(SAVE_KEY) || '{}').theme === 'dark' ? 'dark' : 'light'; } catch (e) { return 'light'; } })();
-const C = Object.assign({}, THEMES[theme]);
-
-// ---------- 题库 ----------
-const split = s => s.split(/\s+/).filter(Boolean);
-const MODES = {
-  word:  { name: '词语', L: 2, ordered: true,  tip: '只能点每列最上面的字，依次组成 2 字词语' },
-  idiom: { name: '成语', L: 4, ordered: true,  tip: '从每列最上面取字，按顺序拼出四字成语' },
-  pin:   { name: '拼字', L: 2, ordered: false, tip: '点 2 个部件，拼成一个汉字' },
-  poem:  { name: '诗句', L: 5, ordered: true,  tip: '从每列最上面取字，按顺序拼出五字诗句' }
-};
-const DICT = {};
-(function buildDict() {
-  const B = window.WORDBANK || { word: '', idiom: '', pin: '', poem: '' };
-  for (const m of ['word', 'idiom', 'poem']) {
-    const list = [], map = new Map();
-    for (const w of split(B[m])) { const ch = [...w]; if (ch.length !== MODES[m].L || map.has(w)) continue; const e = { k: w, chars: ch, text: w }; list.push(e); map.set(w, e); }
-    DICT[m] = { list, map };
-  }
-  const list = [], map = new Map();
-  for (const t of split(B.pin)) { const c = [...t]; if (c.length !== 3) continue; const k = [c[0], c[1]].sort().join(''); if (map.has(k)) continue;
-    const e = { k, chars: [c[0], c[1]], out: c[2], text: c[0] + ' + ' + c[1] + ' = ' + c[2] }; list.push(e); map.set(k, e); }
-  DICT.pin = { list, map };
-  for (const m in DICT) { const by = new Map(); for (const e of DICT[m].list) for (const ch of new Set(e.chars)) { if (!by.has(ch)) by.set(ch, []); by.get(ch).push(e); } DICT[m].byChar = by; }
-})();
-function lookup(mode, chars) {
-  const D = DICT[mode]; if (!D) return null;
-  const k = MODES[mode].ordered ? chars.join('') : chars.slice().sort().join('');
-  return D.map.get(k) || null;
-}
-// 精确覆盖求解：剩下的字能否全部组成本模式的词条（优先处理候选最少的字，带失败记忆和节点上限）
-function solve(mode, counts, limit) {
-  const D = DICT[mode], memo = new Set(); let nodes = 0; limit = limit || 40000;
-  const keyOf = () => { const a = []; for (const [c, n] of counts) if (n > 0) a.push(c + n); return a.sort().join(','); };
-  const fits = e => { const need = new Map(); for (const c of e.chars) need.set(c, (need.get(c) || 0) + 1); for (const [c, n] of need) if ((counts.get(c) || 0) < n) return false; return true; };
-  function rec() {
-    if (++nodes > limit) throw 0;
-    let bestC = null, bestList = null;
-    for (const [c, n] of counts) {
-      if (n <= 0) continue;
-      const cand = (D.byChar.get(c) || []).filter(fits);
-      if (!cand.length) return null;
-      if (!bestList || cand.length < bestList.length) { bestC = c; bestList = cand; if (cand.length === 1) break; }
-    }
-    if (!bestList) return [];
-    const k = keyOf(); if (memo.has(k)) return null;
-    for (const e of bestList) {
-      for (const c of e.chars) counts.set(c, counts.get(c) - 1);
-      const r = rec();
-      for (const c of e.chars) counts.set(c, counts.get(c) + 1);
-      if (r) return [e].concat(r);
-    }
-    memo.add(k); return null;
-  }
-  try { return rec(); } catch (x) { return null; }
-}
-// 堆叠求解：colsCh[c] 是第 c 列的字（下标 0 为最底），h[c] 为该列剩余高度；只能从每列顶上按顺序取字。
-// 返回一条完整消除序列 [{ e, picks:[列号…] }]，无解返回 null（带失败记忆和节点上限）
-function solveStacks(md, colsCh, h0, prefer, limit) {
-  const D = DICT[md], h = h0.slice(), counts = new Map(); let total = 0, nodes = 0; limit = limit || 60000;
-  for (let c = 0; c < h.length; c++) for (let i = 0; i < h[c]; i++) { const ch = colsCh[c][i]; counts.set(ch, (counts.get(ch) || 0) + 1); total++; }
-  if (!total) return [];
-  const fits = e => { const need = new Map(); for (const ch of e.chars) need.set(ch, (need.get(ch) || 0) + 1); for (const [ch, n] of need) if ((counts.get(ch) || 0) < n) return false; return true; };
-  const seen = new Set(), cand = [];
-  const add = e => { if (e && !seen.has(e.k) && fits(e)) { seen.add(e.k); cand.push(e); } };
-  (prefer || []).forEach(add);
-  for (const ch of counts.keys()) for (const e of (D.byChar.get(ch) || [])) add(e);
-  const memo = new Set();
-  function extracts(e, k, picks, out) {
-    if (k === e.chars.length) { out.push(picks.slice()); return; }
-    for (let c = 0; c < h.length; c++) if (h[c] > 0 && colsCh[c][h[c] - 1] === e.chars[k]) { h[c]--; picks.push(c); extracts(e, k + 1, picks, out); picks.pop(); h[c]++; }
-  }
-  function rec(left) {
-    if (left === 0) return [];
-    if (++nodes > limit) throw 0;
-    const key = h.join(','); if (memo.has(key)) return null;
-    for (const e of cand) {
-      if (!fits(e)) continue;
-      const opts = []; extracts(e, 0, [], opts);
-      for (const picks of opts) {
-        for (const c of picks) h[c]--; for (const ch of e.chars) counts.set(ch, counts.get(ch) - 1);
-        const r = rec(left - e.chars.length);
-        for (const c of picks) h[c]++; for (const ch of e.chars) counts.set(ch, counts.get(ch) + 1);
-        if (r) return [{ e, picks }].concat(r);
-      }
-    }
-    memo.add(key); return null;
-  }
-  try { return rec(total); } catch (x) { return null; }
-}
-
-// ---------- 存档 ----------
 let save = {};
-try { save = JSON.parse(localStorage.getItem(SAVE_KEY) || '{}'); } catch (e) {}
-let diff = save.diff != null ? save.diff : 0;
-let prog = Array.isArray(save.prog) ? save.prog : [1, 1, 1];
-let maxLevel = prog[diff] || 1, best = save.best || 0, timeFactor = save.timeFactor || 1;
-let hintsStock = save.hints != null ? save.hints : 3;
-function persist() {
-  prog[diff] = maxLevel;
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 1, diff, prog, best, timeFactor, hints: hintsStock, theme })); } catch (e) {}
-}
-function applyThemeChrome() {
-  document.documentElement.style.background = document.body.style.background = C.bg;
-  const m = document.querySelector('meta[name=theme-color]'); if (m) m.setAttribute('content', C.bg);
-}
-function setTheme(t) { theme = t === 'dark' ? 'dark' : 'light'; Object.assign(C, THEMES[theme]); boardLayer = null; menuLayer = null; bgKey = ''; sprites.clear(); applyThemeChrome(); persist(); dirty = true; }
-function setDiff(d) { prog[diff] = maxLevel; diff = d; maxLevel = prog[diff] || 1; persist(); }
+try { save = JSON.parse(localStorage.getItem(SAVE_KEY) || '{}') || {}; } catch (e) { save = {}; }
+let theme = save.theme === 'dark' ? 'dark' : 'light';
+let maxLevel = Math.max(1, save.v === 3 && save.lv3 ? save.lv3 | 0 : 1);
+let soundOn = save.sound !== false, totalStars = save.stars3 | 0;
+const C = Object.assign({}, THEMES[theme]);
+function persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 3, lv3: maxLevel, theme, sound: soundOn, stars3: totalStars })); } catch (e) {} }
+
+// ---------- 题库：每条四字成语拆成「前半」「后半」两块牌 ----------
+const IDIOMS = [], DICTSET = new Set();
+(function () {
+  const B = window.WORDBANK || { idiom: '' };
+  for (const w of String(B.idiom).split(/\s+/)) { const ch = [...w]; if (ch.length !== 4 || DICTSET.has(w)) continue; DICTSET.add(w); IDIOMS.push({ w, f: ch[0] + ch[1], b: ch[2] + ch[3] }); }
+})();
 
 // ---------- 工具 ----------
 function rngOf(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-function rr(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
-function hashStr(s) { let h = 2166136261; for (const c of s) { h ^= c.codePointAt(0); h = Math.imul(h, 16777619); } return h >>> 0; }
+const lerp = (a, b, t) => a + (b - a) * t;
+function rr(x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
 function vib(ms) { try { if (typeof navigator.vibrate === 'function') navigator.vibrate(ms); } catch (e) {} }
+function shuffleArr(a, r) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); const t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
 
-// ---------- 声音（WebAudio 合成） ----------
+// ---------- 声音（WebAudio 合成，五声音阶） ----------
 let actx = null;
-function beep(freq, dur, type, vol, slide) {
-  if (!actx) return;
+function beep(freq, dur, type, vol, slide, delay) {
+  if (!actx || !soundOn) return;
   try {
-    const o = actx.createOscillator(), g = actx.createGain(), t = actx.currentTime;
+    const o = actx.createOscillator(), g = actx.createGain(), t = actx.currentTime + (delay || 0);
     o.type = type || 'sine'; o.frequency.setValueAtTime(freq, t);
     if (slide) o.frequency.exponentialRampToValueAtTime(slide, t + dur);
-    g.gain.setValueAtTime(vol || 0.12, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
-    o.connect(g); g.connect(actx.destination); o.start(t); o.stop(t + dur);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol || 0.12, t + 0.008); g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
+    o.connect(g); g.connect(actx.destination); o.start(t); o.stop(t + dur + 0.02);
   } catch (e) {}
 }
+const PENTA = [392, 440, 523, 587, 659, 784, 880, 1046];
 const sfx = {
-  pick(i) { beep(480 + i * 70, 0.07, 'triangle', 0.09); },
-  ok(c) { [0, 1, 2].forEach(k => setTimeout(() => beep(620 + Math.min(c, 8) * 40 + k * 180, 0.12, 'triangle', 0.11), k * 55)); },
-  bad() { beep(150, 0.24, 'square', 0.07, 80); },
-  warn() { beep(420, 0.12, 'sine', 0.08, 360); },
-  win() { [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => beep(f, 0.22, 'triangle', 0.12), i * 110)); },
-  lose() { [392, 330, 262].forEach((f, i) => setTimeout(() => beep(f, 0.3, 'sine', 0.12), i * 160)); },
-  clock() { beep(880, 0.12, 'sine', 0.12); setTimeout(() => beep(1320, 0.15, 'sine', 0.12), 90); },
-  click() { beep(660, 0.05, 'sine', 0.06); },
-  shuffle() { for (let i = 0; i < 4; i++) setTimeout(() => beep(300 + i * 90, 0.06, 'triangle', 0.06), i * 40); }
+  pick(i) { beep(PENTA[clamp(i, 0, 3)], 0.12, 'triangle', 0.09); },
+  clear(c) { const b = clamp(c, 0, 3); [0, 2, 4].forEach((k, i) => beep(PENTA[b + k] || 1046, 0.42, 'triangle', 0.1, 0, i * 0.07)); },
+  bad() { beep(180, 0.22, 'sine', 0.1, 110); },
+  win() { [523, 587, 659, 784, 880, 1046].forEach((f, i) => beep(f, 0.5, 'triangle', 0.1, 0, i * 0.1)); },
+  lose() { [440, 392, 330, 262].forEach((f, i) => beep(f, 0.45, 'sine', 0.11, 0, i * 0.16)); },
+  click() { beep(784, 0.06, 'sine', 0.05); },
+  item() { [659, 784, 1046].forEach((f, i) => beep(f, 0.18, 'triangle', 0.08, 0, i * 0.05)); },
+  shuffle() { for (let i = 0; i < 5; i++) beep(PENTA[i], 0.08, 'triangle', 0.06, 0, i * 0.04); }
 };
 
-// ---------- 关卡 ----------
-const DIFFS = [
-  { name: '普通', t0: 12, t1: 28, Lmax: 30, tA: 4.2, tB: 10, pen: 3, hide: 99, extra: 0 },
-  { name: '困难', t0: 14, t1: 32, Lmax: 20, tA: 3.4, tB: 8,  pen: 4, hide: 3,  extra: 1 },
-  { name: '地狱', t0: 16, t1: 36, Lmax: 14, tA: 2.8, tB: 6,  pen: 5, hide: 2,  extra: 1 }
-];
-// 第 1–2 关是 2 字词语热身，之后以成语为主、诗句穿插
-const MODE_SEQ = ['idiom', 'idiom', 'poem'];
-const modeOf = n => n <= 2 ? 'word' : MODE_SEQ[(n - 3) % MODE_SEQ.length];
-// 反向构造堆叠：按「通关顺序」的倒序，把每条词从最后一个字到第一个字依次压到某一列顶上。
-// 这样按正序取字时，每个字都正好在某列最上面 → 必然存在一条合法消除序列。
-function buildStacks(answers, cols, Hmax, rng) {
-  const stacks = Array.from({ length: cols }, () => []);
-  for (let k = answers.length - 1; k >= 0; k--) {
-    const e = answers[k]; let prev = -1;
-    for (let j = e.chars.length - 1; j >= 0; j--) {
-      const open = []; for (let c = 0; c < cols; c++) if (stacks[c].length < Hmax) open.push(c);
-      let c;
-      if (prev >= 0 && stacks[prev].length < Hmax && rng() < 0.22) c = prev;   // 偶尔叠在同一列：取走上面的字才露出下一个
-      else {
-        const pool = open.filter(x => x !== prev).length ? open.filter(x => x !== prev) : open;
-        let tot = 0; const w = pool.map(x => { const v = Math.pow(Hmax - stacks[x].length, 2); tot += v; return v; });
-        let r = rng() * tot; c = pool[pool.length - 1];
-        for (let i = 0; i < pool.length; i++) { r -= w[i]; if (r <= 0) { c = pool[i]; break; } }
-      }
-      stacks[c].push(e.chars[j]); prev = c;
-    }
-  }
-  return stacks;
+// ---------- 关卡生成 ----------
+// 坐标单位：半格。横牌 4×2，竖牌 2×4；棋盘 14×16 半格（7×8 格）。层号越大越靠上。
+const SLOT = 4, HOLD = 4, BW = 14, BH = 16;
+const RANKS = ['童生', '秀才', '举人', '贡士', '进士', '探花', '榜眼', '状元'], RANK_AT = [0, 3, 8, 15, 25, 38, 55, 80];
+function rankOf(cleared) { let r = 0; for (let i = 0; i < RANKS.length; i++) if (cleared >= RANK_AT[i]) r = i; return r; }
+const ITEM_KEYS = ['shuffle', 'out', 'hint', 'joker'], ITEM_NAME = { shuffle: '洗牌', out: '移出', hint: '提示', joker: '万能' };
+const ITEM_STOCK = { shuffle: 1, out: 1, hint: 2, joker: 1 };
+function params(n) {
+  const t = Math.min(1, (n - 1) / 32), boss = n >= 5 && n % 5 === 0;
+  return {
+    board: n <= 2 ? 10 : Math.round(16 + t * 56 + (boss ? 6 : 0)),
+    layers: Math.min(7, 2 + Math.floor(t * 5) + (boss ? 1 : 0)),
+    pile: n <= 2 ? 0 : Math.min(8, 1 + Math.floor((n - 1) / 5)),
+    open: n <= 3 ? 1 : n <= 10 ? 2 : (boss || n % 3 === 0) ? 3 : 2,   // 设计解里字槽最多同时等配的块数（≤3，保证 4 格不爆）
+    vprob: n <= 1 ? 0.2 : 0.4, boss
+  };
 }
-function genLevel(n, d) {
-  const D = DIFFS[d], md = modeOf(n), M = MODES[md], pool = DICT[md].list;
-  const t = clamp((n - 1) / (D.Lmax - 1), 0, 1), post = Math.max(0, n - D.Lmax);
-  let want = Math.min(36, Math.round(D.t0 + (D.t1 - D.t0) * t + post / 6));
-  if (md === 'word') want = Math.min(want, 8 + d * 2 + (n - 1) * 2);
-  const K = clamp(Math.round(want / M.L), 3, Math.floor(36 / M.L));
-  const rng = rngOf(n * 7919 + 13 + d * 104729);
-  const idx = pool.map((_, i) => i);
-  for (let i = idx.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); const x = idx[i]; idx[i] = idx[j]; idx[j] = x; }
-  const answers = idx.slice(0, K).map(i => pool[i]);
-  const N = K * M.L, cols = N <= 10 ? 4 : N <= 20 ? 5 : 6;
-  const Hmax = clamp(Math.ceil(N / cols) + 1 + D.extra, 3, 7);
-  const stacks = buildStacks(answers, cols, Hmax, rng);
-  const rows = Math.max(...stacks.map(s => s.length));
-  // 时钟字块：放在被盖住的位置，挖出来才拿得到
-  let clock = null;
-  if (n >= 2) { const cand = []; stacks.forEach((s, c) => s.forEach((_, i) => { if (i < s.length - 1) cand.push([c, i]); })); if (cand.length) clock = cand[Math.floor(rng() * cand.length)]; }
-  const timeMul = Math.max(0.75, 1 - post * 0.005);
-  return { n, d, mode: md, answers, stacks, cols, rows, Hmax, clock, N, time: (D.tB + N * D.tA) * timeMul };
+const ov = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;   // 严格重叠（面积 > 0）
+function computeCovers(T) {
+  for (const t of T) t.cov = [];
+  for (const a of T) {
+    if (a.pile != null) { for (const o of T) if (o.pile === a.pile && o.pidx > a.pidx) a.cov.push(o.id); continue; }   // 侧堆：上面所有牌都压着它
+    for (const b of T) if (b.pile == null && b.layer > a.layer && ov(a, b)) a.cov.push(b.id);
+  }
+}
+// 选一组互不「串词」的成语：任意两块来自不同成语的半词，前后拼起来都不能是题库里的成语，也不允许同字面的半词
+function pickIdioms(K, rng) {
+  const pool = shuffleArr(IDIOMS.slice(), rng), out = [], halves = new Set();
+  for (const e of pool) {
+    if (out.length >= K) break;
+    if (e.f === e.b || halves.has(e.f) || halves.has(e.b)) continue;
+    let bad = false;
+    for (const h of halves) { if (DICTSET.has(h + e.f) || DICTSET.has(e.f + h) || DICTSET.has(h + e.b) || DICTSET.has(e.b + h)) { bad = true; break; } }
+    if (bad) continue;
+    out.push(e); halves.add(e.f); halves.add(e.b);
+  }
+  return out.length >= K ? out : null;
+}
+function genLevel(n) {
+  const P = params(n);
+  for (let attempt = 0; attempt < 30; attempt++) {
+    const rng = rngOf(n * 7919 + attempt * 104729 + 17), T = [];
+    const ws = []; for (let l = 0; l < P.layers; l++) ws.push(1 - l * 0.1);
+    const sw = ws.reduce((a, b) => a + b, 0);
+    let byLayer = [];
+    for (let l = 0; l < P.layers; l++) {
+      const cnt = Math.max(1, Math.round(P.board * ws[l] / sw)), mine = [], prev = byLayer[l - 1] || [];
+      for (let tries = 0; mine.length < cnt && tries < 5000; tries++) {
+        const v = rng() < P.vprob, w = v ? 2 : 4, h = v ? 4 : 2;
+        const sp = l === 0 || rng() < 0.4, cx = sp ? rng() : (rng() + rng()) / 2, cy = sp ? rng() : (rng() + rng()) / 2;   // 底层铺满，上层略向中间聚
+        let x = Math.round(cx * (BW - w)), y = Math.round(cy * (BH - h));
+        if (l % 2 === 0) { x -= x & 1; y -= y & 1; }
+        const r = { x, y, w, h };
+        if (mine.some(o => ov(o, r))) continue;
+        if (l > 0 && !prev.some(o => ov(o, r))) continue;
+        mine.push(r);
+      }
+      for (const r of mine) T.push({ id: T.length, x: r.x, y: r.y, w: r.w, h: r.h, v: r.h > r.w, layer: l, pile: null, pidx: 0 });
+      byLayer.push(mine);
+    }
+    while ((T.length + P.pile * 2) % 2) T.pop();
+    for (let p = 0; p < 2; p++) for (let i = 0; i < P.pile; i++) T.push({ id: T.length, x: 0, y: 0, w: 4, h: 2, v: false, layer: 99, pile: p, pidx: i });
+    const N = T.length; if (N < 4) continue;
+    computeCovers(T);
+    // 反向构造：先按「遮挡关系」随机拿出一条完整的取牌顺序，再沿这条顺序配对填词（同时最多 open 个半词在等配），保证不用道具也有解
+    const alive = new Array(N).fill(true), seq = [];
+    while (seq.length < N) {
+      const ex = []; for (let i = 0; i < N; i++) if (alive[i] && T[i].cov.every(j => !alive[j])) ex.push(i);
+      const i = ex[Math.floor(rng() * ex.length)]; alive[i] = false; seq.push(i);
+    }
+    const ids = pickIdioms(N / 2, rng); if (!ids) continue;
+    let open = [], k = 0;
+    for (let s = 0; s < N; s++) {
+      const rest = N - s, t = T[seq[s]];
+      const canOpen = open.length < P.open && rest - 1 >= open.length + 1;
+      const doOpen = open.length === 0 || (canOpen && rng() < 0.5);
+      if (doOpen) { const part = rng() < 0.5 ? 0 : 1; t.k = k; t.part = part; open.push({ k, part }); k++; }
+      else { const oi = Math.floor(rng() * open.length), o = open.splice(oi, 1)[0]; t.k = o.k; t.part = 1 - o.part; }
+    }
+    if (open.length) continue;
+    for (const t of T) { const e = ids[t.k]; t.idiom = e.w; t.text = t.part === 0 ? e.f : e.b; }
+    for (const t of T) t.mate = T.find(o => o !== t && o.k === t.k).id;
+    return { n, P, tiles: T, seq, idioms: ids.map(e => e.w) };
+  }
+  return null;
+}
+
+// ---------- 求解器 ----------
+// st[i]: 'b' 在牌堆/侧堆上；'h' 在暂存区；'s' 在字槽；'g' 已消除。
+// 两条支配规则（不会漏解）：① 字槽里有某块的另一半且它可取 → 直接取；② 一对两半同时可取且字槽 ≤2 → 直接成对取。其余情况才分支。
+function solveState(T, st0, limit) {
+  const N = T.length, st = st0.slice(); let nodes = 0; limit = limit || 50000;
+  const memo = new Set(), path = [];
+  const free = i => st[i] === 'h' || (st[i] === 'b' && T[i].cov.every(j => st[j] !== 'b'));
+  const blockers = i => { if (st[i] === 'h' || st[i] === 's') return 0; let c = 0; for (const j of T[i].cov) if (st[j] === 'b') c++; return c; };
+  function rec() {
+    if (++nodes > limit) throw 0;
+    let left = 0, sc = 0; for (let i = 0; i < N; i++) { if (st[i] !== 'g') left++; if (st[i] === 's') sc++; }
+    if (!left) return true;
+    const key = st.join(''); if (memo.has(key)) return false;
+    const av = []; for (let i = 0; i < N; i++) if (free(i)) av.push(i);
+    for (const i of av) { const m = T[i].mate; if (st[m] === 's') {
+      const a = st[i]; st[i] = 'g'; st[m] = 'g'; path.push(i);
+      if (rec()) return true; path.pop(); st[i] = a; st[m] = 's'; memo.add(key); return false; } }
+    if (sc >= 3) { memo.add(key); return false; }
+    if (sc <= 2) for (const i of av) { const m = T[i].mate; if (m > i && free(m)) {
+      const a = st[i], b = st[m]; st[i] = 'g'; st[m] = 'g'; path.push(i, m);
+      if (rec()) return true; path.pop(); path.pop(); st[i] = a; st[m] = b; memo.add(key); return false; } }
+    const order = av.map(i => [i, blockers(T[i].mate)]).sort((p, q) => p[1] - q[1]);
+    for (const [i] of order) {
+      const a = st[i]; st[i] = 's'; path.push(i);
+      if (rec()) return true; path.pop(); st[i] = a;
+    }
+    memo.add(key); return false;
+  }
+  try { return rec() ? { path, nodes } : { path: null, nodes }; } catch (x) { return { path: null, nodes, limit: true }; }
 }
 
 // ---------- 游戏状态 ----------
-let W = 0, H = 0, DPR = 1, cs = 50, pitch = 35, ox = 0, oy = 0, bw = 0, bh = 0;
-let state = 'menu', level = 1, mode = 'word', L = 2, cols = 4, rows = 2, Hmax = 4, tiles = [], stk = [], plan = [], sel = [], hintIds = [], flyers = [];
-let timeLeft = 0, timeTotal = 0, score = 0, levelScore = 0, combo = 0, lastClear = -9, mistakes = 0, groups = 0;
-let elapsed = 0, particles = [], floaters = [], toast = null, now = 0, slotFx = null;
-let shake = 0, flash = 0, buttons = [], lastResult = null, loseReason = '';
-let segAnim = diff, comboAt = -9, panelAt = -9, starPopped = [], coverTipAt = -99;
-
-// 把一组「列 → 字」装进 tiles / stk；reuse 时复用已有字块对象（洗牌用）
-function placeStacks(stacks, reuse, clock) {
-  const pool = reuse ? reuse.slice() : null;
-  stk = stacks.map(() => []);
-  if (!reuse) tiles = [];
-  stacks.forEach((s, c) => s.forEach((ch, i) => {
-    let t;
-    if (pool) { const k = pool.findIndex(x => x.ch === ch); t = pool.splice(k, 1)[0]; }
-    else { t = { id: tiles.length, ch, ci: hashStr(ch) % 8, alive: true, inSlot: false, wrong: 0, nudge: 0, clock: !!(clock && clock[0] === c && clock[1] === i), vy: 0 }; tiles.push(t); }
-    t.col = c; t.idx = i; t.row = s.length - 1 - i; t.ry = reuse ? t.row - 1.2 - Math.random() * 0.6 : t.row; t.vy = 0;
-    stk[c].push(t.id);
-  }));
-  rows = Math.max(1, ...stacks.map(s => s.length));
-}
-const heights = () => stk.map(s => s.length);
-const stackChars = () => stk.map(s => s.map(id => tiles[id].ch));
-const isTop = t => { const s = stk[t.col]; return !!s && s[s.length - 1] === t.id; };
-function replan(prefer) { return solveStacks(mode, stackChars(), heights(), prefer); }
-
+let W = 0, H = 0, DPR = 1, U = 40, HU = 20, BX = 0, BY = 0;
+let state = 'menu', level = 1, T = [], tray = [], hold = [], items = {}, itemsUsed = 0, cleared = [], boardRev = 0;
+let particles = [], floaters = [], toast = null, now = 0, clearFx = [], hintIds = [], hintUntil = 0, shake = 0;
+let buttons = [], lastResult = null, panelAt = -9, sealPopped = [], lockUntil = 0, pending = null, loseReason = '', lastIdiom = '';
+const G = {};   // 布局
 function startLevel(n) {
-  level = n;
-  const g = genLevel(n, diff);
-  mode = g.mode; L = MODES[mode].L; cols = g.cols; Hmax = g.Hmax;
-  placeStacks(g.stacks, null, g.clock);
-  plan = replan(g.answers) || [];
-  sel = []; hintIds = []; flyers = []; levelScore = 0; combo = 0; lastClear = -9; mistakes = 0; groups = g.answers.length; elapsed = 0;
-  particles = []; floaters = []; shake = 0; flash = 0; slotFx = null;
-  timeTotal = Math.round(g.time * timeFactor); timeLeft = timeTotal;
-  toast = { text: MODES[mode].tip, life: 2.4 };
-  state = 'play'; computeBoard();
+  const g = genLevel(n); if (!g) { showToast('生成关卡失败'); return; }
+  level = n; T = g.tiles; tray = []; hold = []; cleared = []; itemsUsed = 0; lastIdiom = '';
+  for (const t of T) { t.st = 'b'; t.disp = null; }
+  items = Object.assign({}, ITEM_STOCK);
+  clearFx = []; hintIds = []; particles = []; floaters = []; pending = null; lockUntil = 0; lastResult = null; sealPopped = [];
+  state = 'play'; boardRev++; dirty = true; toast = null;
+  if (n === 1) showToast('点没被压住的白牌，前后两半凑成成语就消除', 3.2);
 }
-// 洗牌：用剩下的词条重新反向构造一次堆叠（依然保证有解）
-function shuffleBoard() {
-  if (state !== 'play') return;
-  undoAll(true);
-  const ans = (plan.length ? plan.map(p => p.e) : []).slice();
-  if (!ans.length) return;
-  const r = rngOf((Math.random() * 1e9) | 0);
-  for (let i = ans.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); const x = ans[i]; ans[i] = ans[j]; ans[j] = x; }
-  const left = ans.reduce((a, e) => a + e.chars.length, 0), H2 = clamp(Math.ceil(left / cols) + 1 + DIFFS[diff].extra, 3, 7);
-  placeStacks(buildStacks(ans, cols, H2, r), tiles.filter(t => t.alive));
-  plan = replan(ans) || [];
-  hintIds = []; sfx.shuffle(); computeBoard(); dirty = true;
+const isFree = t => t && (t.st === 'h' || (t.st === 'b' && t.cov.every(j => T[j].st !== 'b')));
+const leftCount = () => T.reduce((s, t) => s + (t.st !== 'g' ? 1 : 0), 0);
+function showToast(text, life) { toast = { text, life: life || 1.8 }; dirty = true; }
+function tileRect(t) {
+  if (t.pile != null) { const p = pileGeom(t.pile), k = Math.max(0, pileCount(t.pile) - 1 - t.pidx);   // 顶牌固定，下面的牌依次向外错开露出边
+    return { x: p.x + (t.pile === 0 ? -1 : 1) * Math.min(k, 8) * p.step, y: p.y, w: p.w, h: p.h }; }
+  return { x: BX + t.x * HU + 1, y: BY + t.y * HU + 1, w: t.w * HU - 2, h: t.h * HU - 2 };
 }
+function pileCount(p) { let n = 0; for (const t of T) if (t.pile === p && t.st === 'b') n = Math.max(n, t.pidx + 1); return n; }
+function pileGeom(p) { const w = G.pw, h = G.ph, step = 3.5; return { x: p === 0 ? G.pileL : G.pileR, y: G.pileY, w, h, step }; }
+function trayCell(i) { return { x: G.trayX + 10 + i * G.cellW + 4, y: G.trayY + (G.trayH - G.tth) / 2, w: G.cellW - 8, h: G.tth }; }
+function holdCell(i) { return { x: G.holdX + 8 + i * G.hcellW + 4, y: G.holdY + (G.holdH - G.hth) / 2, w: G.hcellW - 8, h: G.hth }; }
 
-const aliveCount = () => tiles.reduce((s, t) => s + (t.alive ? 1 : 0), 0);
-function slotPos(i) {
-  const x0 = 14, w0 = W - 28, n = L, gap = 8, clearW = 44;
-  const s = Math.min(46, (w0 - 28 - clearW - gap * (n - 1)) / n), tot = s * n + gap * (n - 1);
-  return { x: x0 + (w0 - clearW - tot) / 2 + i * (s + gap), y: SLOT_Y + (SLOT_H - s) / 2, s };
+function take(t) {
+  if (state !== 'play' || now < lockUntil || !t) return;
+  if (!isFree(t)) { sfx.bad(); t.wob = 0.3; showToast('被上面的牌压住了，先消上面的'); return; }
+  const from = t.disp ? Object.assign({}, t.disp) : tileRect(t);
+  const wasBoard = t.st === 'b';
+  if (t.st === 'h') hold.splice(hold.indexOf(t.id), 1);
+  t.st = 's'; tray.push(t.id); t.disp = from; hintIds = [];
+  if (wasBoard) boardRev++;
+  sfx.pick(tray.length - 1); vib(8);
+  resolve(t);
 }
-function tapTile(t) {
-  if (!t || !t.alive || t.inSlot || state !== 'play') return;
-  if (!isTop(t)) {   // 被上面的字盖住了：不罚时，只轻轻抖一下
-    t.nudge = 0.3; sfx.warn();
-    if (now - coverTipAt > 3) { coverTipAt = now; toast = { text: '被上面的字盖住了，先消掉上面的', life: 1.6 }; }
-    return;
+function resolve(t) {
+  const m = T[t.mate];
+  if (m.st === 's') {
+    const ci = tray.indexOf(m.id), ti = tray.indexOf(t.id);
+    clearFx.push({ ids: [m.id, t.id], from: [Object.assign({}, m.disp || trayCell(ci)), Object.assign({}, t.disp)], to: [trayCell(ci), trayCell(ti)], age: 0, idiom: t.idiom, first: m.part === 0 ? m.id : t.id });
+    tray = tray.filter(id => id !== m.id && id !== t.id); m.st = 'g'; t.st = 'g';
+    cleared.push(t.idiom); lastIdiom = t.idiom;
+    sfx.clear(cleared.length % 4);
+    if (!T.some(o => o.st !== 'g')) { pending = { kind: 'win', at: now + 0.75 }; lockUntil = now + 99; }
+  } else if (tray.length >= SLOT) {
+    pending = { kind: 'lose', at: now + 0.45 }; lockUntil = now + 99; loseReason = '4 格都放满了，却凑不出一对'; shake = 0.35; sfx.bad(); vib(40);
   }
-  if (sel.length >= L) return;
-  stk[t.col].pop(); t.inSlot = true; sel.push(t.id);
-  const [x, y] = tileXY(t); flyers.push({ id: t.id, i: sel.length - 1, x0: x, y0: y, k: 0 });
-  sfx.pick(sel.length);
-  if (sel.length >= L) evaluate();
-  else if (!prefixPossible()) { slotFx = { kind: 'warn', life: 0.6, chars: null }; toast = { text: `「${sel.map(id => tiles[id].ch).join('')}」开头凑不出词，点「撤回」放回去`, life: 2 }; }
+  dirty = true;
 }
-// 已选的字作开头，场上剩下的字里还能不能凑出一条词（只看字够不够，不看遮挡）
-function prefixPossible() {
-  const pre = sel.map(id => tiles[id].ch), cnt = new Map();
-  for (const t of tiles) if (t.alive && !t.inSlot) cnt.set(t.ch, (cnt.get(t.ch) || 0) + 1);
-  for (const e of (DICT[mode].byChar.get(pre[0]) || [])) {
-    if (e.chars.length !== L) continue;
-    let ok = true; for (let i = 0; i < pre.length; i++) if (e.chars[i] !== pre[i]) { ok = false; break; }
-    if (!ok) continue;
-    const need = new Map(); for (const c of e.chars.slice(pre.length)) need.set(c, (need.get(c) || 0) + 1);
-    for (const [c, n] of need) if ((cnt.get(c) || 0) < n) { ok = false; break; }
-    if (ok) return true;
+function useItem(key) {
+  if (state !== 'play' || now < lockUntil) return false;
+  if (!items[key]) { showToast(`本关「${ITEM_NAME[key]}」已用完`); sfx.bad(); return false; }
+  let ok = false;
+  if (key === 'shuffle') ok = doShuffle();
+  else if (key === 'out') ok = doOut();
+  else if (key === 'hint') ok = doHint();
+  else if (key === 'joker') ok = doJoker();
+  if (ok) { items[key]--; itemsUsed++; sfx.item(); }
+  dirty = true; return ok;
+}
+function stArr() { return T.map(t => t.st); }
+function doShuffle() {
+  const ids = T.filter(t => t.st === 'b').map(t => t.id);
+  if (ids.length < 2) { showToast('牌堆里没有可洗的牌了'); return false; }
+  const keep = ids.map(i => ({ k: T[i].k, part: T[i].part, text: T[i].text, idiom: T[i].idiom, mate: T[i].mate }));
+  let best = null;
+  for (let a = 0; a < 40; a++) {
+    const perm = shuffleArr(keep.slice(), Math.random);
+    ids.forEach((id, j) => Object.assign(T[id], { k: perm[j].k, part: perm[j].part, text: perm[j].text, idiom: perm[j].idiom }));
+    for (const t of T) if (t.st !== 'g') t.mate = T.find(o => o !== t && o.k === t.k).id;
+    if (solveState(T, stArr(), 6000).path) { best = true; break; }
   }
-  return false;
+  boardRev++; sfx.shuffle(); showToast(best ? '已洗牌' : '已洗牌（局面较难，可再用道具）'); return true;
 }
-// 撤回：把最后放进字槽的字放回原来那一列的最上面
-function undo(silent) {
-  if (!sel.length) { if (!silent) toast = { text: '字槽是空的', life: 1.2 }; return false; }
-  const id = sel.pop(), t = tiles[id];
-  t.inSlot = false; stk[t.col].push(id); t.ry = t.row - 0.5; t.vy = 0;
-  flyers = flyers.filter(f => f.id !== id);
-  if (!silent) sfx.click();
+function doOut() {
+  if (!tray.length) { showToast('字槽是空的，不用移出'); return false; }
+  const room = HOLD - hold.length; if (room <= 0) { showToast('暂存区已满'); return false; }
+  const mv = tray.slice(0, Math.min(room, 3));
+  for (const id of mv) { T[id].st = 'h'; hold.push(id); }
+  tray = tray.filter(id => !mv.includes(id));
+  showToast(`移出 ${mv.length} 块到暂存区，点它可放回字槽`); return true;
+}
+function doHint() {
+  const r = solveState(T, stArr(), 30000);
+  if (!r.path || !r.path.length) { showToast('当前局面走不通了，试试洗牌、移出或万能'); return false; }
+  const a = r.path[0]; hintIds = [a];
+  if (r.path[1] != null && T[r.path[1]].mate === a) hintIds.push(r.path[1]);
+  else if (T[T[a].mate].st === 's') hintIds.push(T[a].mate);
+  hintUntil = now + 3.2; return true;
+}
+function doJoker() {
+  let a = tray.length ? T[tray[0]] : null;
+  if (!a) { const fr = T.filter(isFree); if (!fr.length) { showToast('没有可用的牌'); return false; } a = fr[0]; }
+  const m = T[a.mate];
+  const fromA = Object.assign({}, a.disp || tileRect(a)), fromM = Object.assign({}, m.disp || tileRect(m));
+  const ci = a.st === 's' ? tray.indexOf(a.id) : Math.min(tray.length, SLOT - 1);
+  if (m.st === 'h') hold.splice(hold.indexOf(m.id), 1);
+  if (a.st === 'h') hold.splice(hold.indexOf(a.id), 1);
+  if (m.st === 'b' || a.st === 'b') boardRev++;
+  tray = tray.filter(id => id !== a.id && id !== m.id);
+  a.st = 'g'; m.st = 'g'; cleared.push(a.idiom); lastIdiom = a.idiom;
+  const to = trayCell(ci);
+  clearFx.push({ ids: [a.id, m.id], from: [fromA, fromM], to: [to, { x: to.x, y: to.y, w: to.w, h: to.h }], age: 0, idiom: a.idiom, first: a.part === 0 ? a.id : m.id, joker: true });
+  if (!T.some(o => o.st !== 'g')) { pending = { kind: 'win', at: now + 0.75 }; lockUntil = now + 99; }
   return true;
 }
-function undoAll(silent) { while (sel.length) undo(true); if (!silent) sfx.click(); }
-function evaluate() {
-  const ids = sel.slice(), chars = ids.map(id => tiles[id].ch);
-  const e = lookup(mode, chars);
-  if (!e) { wrong(ids, chars); return; }
-  // 合法词条：只要剩下的字还能按「从上往下」的规则全部消完，就算对
-  const sol = replan(plan.map(p => p.e).filter(x => x !== e));
-  if (sol) { plan = sol; accept(e, ids); return; }
-  slotFx = { chars, kind: 'warn', life: 0.9 };
-  toast = { text: `「${e.text}」没错，但这样消剩下的字就凑不齐了，换一个`, life: 2.4 };
-  undoAll(true); for (const id of ids) tiles[id].wrong = 0.3;
-  sfx.warn();
-}
-function wrong(ids, chars) {
-  mistakes++; combo = 0;
-  const pen = DIFFS[diff].pen; timeLeft = Math.max(0, timeLeft - pen);
-  slotFx = { chars, kind: 'bad', life: 0.7 };
-  shake = 0.25; flash = 0.2; sfx.bad(); vib(50);
-  floaters.push({ x: W / 2, y: SLOT_Y + SLOT_H + 14, text: `「${chars.join('')}」不成词  -${pen}秒`, life: 1.1, col: C.red });
-  undoAll(true); for (const id of ids) tiles[id].wrong = 0.45;
-}
-function accept(e, ids) {
-  if (elapsed - lastClear < 4) combo++; else combo = 1;
-  if (combo >= 2) comboAt = now;
-  lastClear = elapsed;
-  const pts = 10 * L + (combo - 1) * 10;
-  levelScore += pts; score += pts; groups--;
-  ids.forEach((id, i) => {
-    const t = tiles[id]; t.alive = false; t.inSlot = false;
-    const p = slotPos(i); burst(p.x + p.s / 2, p.y + p.s / 2, C.tiles[t.ci][1], 7);
-    if (t.clock) { timeLeft += 5; floaters.push({ x: p.x + p.s / 2, y: p.y + p.s + 6, text: '+5秒', life: 1.2, col: C.blue, big: true }); sfx.clock(); }
-  });
-  sel = []; flyers = []; hintIds = [];
-  slotFx = { chars: ids.map(id => tiles[id].ch), kind: 'ok', life: 0.8 };
-  floaters.push({ x: W / 2, y: SLOT_Y + SLOT_H + 18, text: e.text, life: 1.1, col: C.green, big: true });
-  floaters.push({ x: W / 2, y: SLOT_Y + SLOT_H + 46, text: '+' + pts + (combo >= 2 ? '  连击×' + combo : ''), life: 0.9, col: combo >= 2 ? C.gold : C.green });
-  if (combo > 0 && combo % 3 === 0) { timeLeft += 3; floaters.push({ x: W / 2, y: oy + bh / 2, text: '连击奖励 +3秒', life: 1.3, col: C.gold, big: true }); }
-  sfx.ok(combo);
-  if (aliveCount() && !plan.length) toast = { text: '好像卡住了，试试「洗牌」', life: 2.4 };   // 理论上不会发生（求解器兜底）
-}
-function planIds() {
-  const p = plan[0]; if (!p) return [];
-  const h = heights(), ids = [];
-  for (const c of p.picks) { if (h[c] <= 0) return []; ids.push(stk[c][h[c] - 1]); h[c]--; }
-  return ids;
-}
-function useHint() {
-  if (state !== 'play') return;
-  if (hintIds.length && hintIds.every(id => tiles[id].alive && !tiles[id].inSlot) && !sel.length) return;
-  if (hintsStock <= 0) { toast = { text: '提示用完了（每过一关 +1）', life: 1.6 }; return; }
-  if (sel.length) undoAll(true);
-  if (!plan.length) { plan = replan() || []; }
-  const ids = planIds(); if (!ids.length) { toast = { text: '试试「洗牌」', life: 1.6 }; return; }
-  hintIds = ids; hintsStock--; persist(); sfx.click();
-  toast = { text: `提示：${plan[0].e.text}`, life: 2 };
+function revive() {
+  if (state !== 'lose') return;
+  const canOut = items.out > 0 && hold.length < HOLD, canJ = items.joker > 0;
+  state = 'play'; lockUntil = 0; pending = null;
+  if (canOut) useItem('out'); else if (canJ) useItem('joker');
 }
 function win() {
-  state = 'win';
-  const stars = mistakes === 0 ? 3 : mistakes <= 2 ? 2 : 1;
-  const bonus = Math.round(timeLeft) * 5;
-  score += bonus; levelScore += bonus;
-  best = Math.max(best, score); maxLevel = Math.max(maxLevel, level + 1);
-  hintsStock = Math.min(9, hintsStock + 1);
-  timeFactor = Math.max(0.85, timeFactor * 0.97);
-  lastResult = { stars, bonus, time: elapsed, mistakes };
-  persist(); sfx.win();
-  panelAt = now; starPopped = []; confetti();
+  const stars = itemsUsed === 0 ? 3 : itemsUsed === 1 ? 2 : 1;
+  const before = rankOf(maxLevel - 1);
+  if (level >= maxLevel) maxLevel = level + 1;
+  totalStars += stars; const after = rankOf(maxLevel - 1);
+  lastResult = { stars, idioms: cleared.length, promoted: after > before ? RANKS[after] : null };
+  state = 'win'; panelAt = now; sealPopped = []; persist(); sfx.win(); inkConfetti();
 }
-function lose(reason) {
-  state = 'lose'; loseReason = reason; panelAt = now;
-  timeFactor = Math.min(1.6, timeFactor * 1.12);
-  best = Math.max(best, score); persist(); sfx.lose();
-}
+function lose() { state = 'lose'; panelAt = now; sfx.lose(); }
+
 // ---------- 布局 ----------
 let cvRect = { left: 0, top: 0 };
 function resize(force) {
@@ -423,525 +358,549 @@ function resize(force) {
   W = nW; H = nH; DPR = nD;
   cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-  menuLayer = null; sprites.clear(); bgKey = '';
-  computeBoard();
-  dirty = true; return true;
+  layout(); dirty = true; return true;
 }
 let resizeTimer = 0;
 function queueResize() { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => resize(false), 120); }
-const SLOT_Y = 118, SLOT_H = 64;
-function computeBoard() {
-  const top = SLOT_Y + SLOT_H + 22, bot = 100;
-  const aw = W - 44, ah = H - top - bot - 12, k = 0.7;   // 上下相邻字块错开 0.7 格，形成「上层压下层」的叠放感
-  cs = Math.max(24, Math.min(aw / cols, ah / ((rows - 1) * k + 1), 74));
-  pitch = cs * k;
-  bw = cs * cols; bh = (rows - 1) * pitch + cs; ox = (W - bw) / 2; oy = top + Math.max(0, (ah - bh) / 2) * 0.5;
-  boardLayer = null; sprites.clear();
+function layout() {
+  const top = 96;
+  G.propsH = 68; G.propsY = H - G.propsH - 6;
+  G.trayH = 58; G.trayY = G.propsY - 8 - G.trayH; G.trayX = 12; G.trayW = W - 24; G.cellW = (G.trayW - 20) / SLOT; G.tth = Math.min(G.trayH - 16, (G.cellW - 8) / 2);
+  G.holdH = 44; G.holdY = G.trayY - 6 - G.holdH; G.holdX = 22; G.holdW = W - 44; G.hcellW = (G.holdW - 16) / HOLD; G.hth = Math.min(G.holdH - 10, (G.hcellW - 8) / 2);
+  const avail = G.holdY - 10 - top;
+  U = Math.max(22, Math.min((W - 16) / (BW / 2), (avail - 10) / (BH / 2 + 1), 64)); HU = U / 2;
+  const bw = BW * HU, bh = BH * HU;
+  BX = (W - bw) / 2; BY = top + Math.max(0, (avail - 10 - bh - U) / 2);
+  G.bw = bw; G.bh = bh;
+  G.pw = U * 2 - 4; G.ph = U - 4; G.pileY = BY + bh + 8 + Math.max(0, (avail - 10 - bh - U) / 2) * 0.4;
+  G.pileL = 14 + 8 * 3.5; G.pileR = W - 14 - 8 * 3.5 - G.pw;
+  boardLayer = null; sprites.clear(); bgLayer = null; menuLayer = null; panelLayer = null;
 }
-const tileXY = t => [ox + (t.col + 0.5) * cs, oy + t.ry * pitch + cs / 2];
-let boardLayer = null, menuLayer = null, dirty = true, bgKey = '';
+
+// ---------- 离屏缓存 ----------
+let boardLayer = null, boardBuilt = -1, bgLayer = null, menuLayer = null, panelLayer = null, dirty = true;
 function makeLayer(w, h) {
   const c = document.createElement('canvas'); c.width = Math.max(1, Math.ceil(w * DPR)); c.height = Math.max(1, Math.ceil(h * DPR));
   const g = c.getContext('2d'); g.setTransform(DPR, 0, 0, DPR, 0, 0); return { c, g, w, h };
 }
 function withCtx(g, fn) { const old = ctx; ctx = g; try { fn(); } finally { ctx = old; } }
-function buildBoardLayer() {
-  const m = 30, pad = 10, L2 = makeLayer(bw + m * 2, bh + m * 2);
-  L2.x = ox - m; L2.y = oy - m;
-  withCtx(L2.g, () => {
-    ctx.translate(-L2.x, -L2.y);
-    const g = ctx.createLinearGradient(0, oy - pad, 0, oy + bh + pad); g.addColorStop(0, C.board); g.addColorStop(1, C.board2);
-    // 离屏只画一次，允许用 shadowBlur
-    ctx.shadowColor = C.shadow; ctx.shadowBlur = 22; ctx.shadowOffsetY = 8; ctx.fillStyle = g; rr(ox - pad, oy - pad, bw + pad * 2, bh + pad * 2, 22); ctx.fill();
-    ctx.shadowBlur = 0; ctx.shadowOffsetY = 0; ctx.strokeStyle = C.boardEdge; ctx.lineWidth = 1; ctx.stroke();
-    // 每一列一条浅色「槽道」
-    ctx.fillStyle = C.spot;
-    for (let x = 0; x < cols; x++) { rr(ox + x * cs + 3, oy + 2, cs - 6, bh - 4, cs * 0.22); ctx.fill(); }
-    // 顶部一条小箭头：从这里取字
-    ctx.fillStyle = C.faint;
-    for (let x = 0; x < cols; x++) { const cx = ox + (x + 0.5) * cs, cy = oy - pad + 1; ctx.beginPath(); ctx.moveTo(cx - 5, cy - 3); ctx.lineTo(cx + 5, cy - 3); ctx.lineTo(cx, cy + 2); ctx.closePath(); ctx.fill(); }
-  });
-  boardLayer = L2;
-}
-// 字块精灵缓存：同一个字+颜色+尺寸+状态只画一次（kind 0 可点 / 1 被盖住变暗 / 2 盖住看不见）
 const sprites = new Map();
-function tileSprite(ch, ci, size, kind) {
-  kind = kind || 0;
-  const k = ch + '|' + ci + '|' + Math.round(size) + '|' + kind;
-  let s = sprites.get(k); if (s) return s;
-  const ed = Math.max(3, size * 0.07), Ly = makeLayer(size, size + ed);
-  withCtx(Ly.g, () => {
-    const [face, edge] = C.tiles[ci], r = size * 0.22;
-    if (kind === 2) {
-      ctx.fillStyle = C.coverEdge; rr(0, ed, size, size, r); ctx.fill();
-      ctx.fillStyle = C.cover; rr(0, 0, size, size, r); ctx.fill();
-      ctx.strokeStyle = C.coverLine; ctx.lineWidth = Math.max(1, size * 0.03); rr(size * 0.12, size * 0.12, size * 0.76, size * 0.76, r * 0.7); ctx.stroke();
-      ctx.fillStyle = C.coverLine; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `700 ${Math.round(size * 0.42)}px ${KFONT}`; ctx.fillText('？', size / 2, size / 2 + size * 0.03);
-    } else {
-      ctx.fillStyle = edge; rr(0, ed, size, size, r); ctx.fill();
-      ctx.fillStyle = face; rr(0, 0, size, size, r); ctx.fill();
-      ctx.fillStyle = theme === 'dark' ? 'rgba(255,255,255,.06)' : 'rgba(255,255,255,.45)'; rr(size * 0.1, size * 0.06, size * 0.8, size * 0.24, size * 0.12); ctx.fill();
-      ctx.fillStyle = C.tileInk; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.font = `700 ${Math.round(size * 0.6)}px ${KFONT}`; ctx.fillText(ch, size / 2, size / 2 + size * 0.03);
-      if (kind === 1) { ctx.fillStyle = C.veil; rr(0, 0, size, size + ed, r); ctx.fill(); }
-    }
+// 半词牌：宣纸白牌 + 右下错位色块做出厚度（不用逐帧模糊）；被压住的牌是灰色
+function tileSprite(text, v, w, h, kind) {
+  w = Math.round(w); h = Math.round(h);
+  const key = text + '|' + (v ? 1 : 0) + '|' + w + 'x' + h + '|' + kind;
+  let sp = sprites.get(key); if (sp) return sp;
+  if (sprites.size > 700) sprites.clear();
+  const d = Math.max(2, Math.round(Math.min(w, h) * 0.08));
+  sp = makeLayer(w + d, h + d); sp.d = d;
+  withCtx(sp.g, () => {
+    const r = Math.max(2, Math.min(w, h) * 0.1), cov = kind === 1;
+    ctx.fillStyle = cov ? C.cSide : C.side; rr(d, d, w, h, r); ctx.fill();
+    const gr = ctx.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, cov ? C.cFace : C.face); gr.addColorStop(1, cov ? C.cFace2 : C.face2);
+    ctx.fillStyle = gr; rr(0, 0, w, h, r); ctx.fill();
+    ctx.strokeStyle = C.edge; ctx.lineWidth = 1; rr(0.5, 0.5, w - 1, h - 1, r); ctx.stroke();
+    if (!cov) { ctx.strokeStyle = 'rgba(168,127,44,.28)'; rr(3, 3, w - 6, h - 6, r * 0.6); ctx.stroke(); }
+    const ch = [...text], cs = v ? Math.min(w, h / 2) : Math.min(w / 2, h), fs = Math.round(cs * 0.68);
+    ctx.font = `700 ${fs}px ${KFONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = cov ? C.cInk : C.tInk;
+    ch.forEach((c, i) => v ? ctx.fillText(c, w / 2, h / 4 + i * h / 2 + fs * 0.04) : ctx.fillText(c, w / 4 + i * w / 2, h / 2 + fs * 0.04));
   });
-  s = { c: Ly.c, w: size, h: size + ed }; sprites.set(k, s);
-  if (sprites.size > 500) sprites.delete(sprites.keys().next().value);
-  return s;
+  sprites.set(key, sp); return sp;
+}
+function drawTileAt(t, r, kind) { const sp = tileSprite(t.text, t.v && t.pile == null && t.st === 'b', r.w, r.h, kind); ctx.drawImage(sp.c, r.x, r.y, sp.w, sp.h); }
+function buildBoardLayer() {
+  const m = 8; if (!boardLayer) boardLayer = makeLayer(G.bw + m * 2, G.bh + m * 2); boardLayer.m = m;
+  const L = boardLayer; L.g.setTransform(1, 0, 0, 1, 0, 0); L.g.clearRect(0, 0, L.c.width, L.c.height); L.g.setTransform(DPR, 0, 0, DPR, 0, 0);
+  const list = T.filter(t => t.st === 'b' && t.pile == null).sort((a, b) => a.layer - b.layer || a.y - b.y || a.x - b.x);
+  withCtx(L.g, () => { ctx.translate(m - BX, m - BY); for (const t of list) drawTileAt(t, tileRect(t), isFree(t) ? 0 : 1); ctx.translate(BX - m, BY - m); });
+  boardBuilt = boardRev;
 }
 
-// ---------- 粒子 / 飘字 ----------
-function starBurst(x, y) {
-  for (let i = 0; i < 9; i++) { const a = i / 9 * Math.PI * 2, v = 90 + Math.random() * 70;
-    particles.push({ star: 1, x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 30, life: 0.55 + Math.random() * 0.25, col: i % 2 ? '#ffc93c' : '#ffe08a', r: 3 + Math.random() * 2.5, rot: Math.random() * 6 }); }
-}
-function confetti() {
-  const cols2 = C.conf.concat(['#ffc93c']);
-  for (let i = 0; i < 70; i++) particles.push({ cf: 1, x: Math.random() * W, y: -10 - Math.random() * H * 0.35, vx: (Math.random() - 0.5) * 80, vy: 60 + Math.random() * 80,
-    rot: Math.random() * 6, vr: (Math.random() - 0.5) * 8, ph: Math.random() * 6, flip: 1, w: 6 + Math.random() * 5, h: 3.5 + Math.random() * 3, col: cols2[i % cols2.length], life: 2.6 + Math.random() * 1.2 });
-}
-function burst(x, y, col, n) {
-  for (let i = 0; i < n; i++) {
-    const a = Math.random() * Math.PI * 2, v = 60 + Math.random() * 160;
-    particles.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 40, life: 0.45 + Math.random() * 0.35, col, r: 2 + Math.random() * 3 });
+// ---------- 水墨背景（缓存） ----------
+function ridge(base, amp, seed, col, a0, a1) {
+  const r = rngOf(seed), p = [r() * 6, r() * 6, r() * 6, r() * 6], f = [2.2 + r() * 1.6, 5 + r() * 3, 11 + r() * 5];
+  ctx.beginPath(); ctx.moveTo(0, H);
+  for (let x = 0; x <= W + 4; x += 4) {
+    const u = x / W, y = base - amp * (0.62 * Math.pow(Math.abs(Math.sin(u * f[0] + p[0])), 1.6) + 0.26 * Math.sin(u * f[1] + p[1]) + 0.12 * Math.sin(u * f[2] + p[2]) * Math.sin(u * 3 + p[3]));
+    ctx.lineTo(x, y);
   }
+  ctx.lineTo(W, H); ctx.closePath();
+  const g = ctx.createLinearGradient(0, base - amp, 0, base + amp * 1.2); g.addColorStop(0, `rgba(${col},${a0})`); g.addColorStop(1, `rgba(${col},${a1})`);
+  ctx.fillStyle = g; ctx.fill();
 }
-
-// ---------- 更新 ----------
-function update(dt) {
-  now += dt;
-  for (const p of particles) {
-    if (p.cf) { p.vy = Math.min(p.vy + 90 * dt, 170); p.vx *= 1 - dt * 0.8; p.x += (p.vx + Math.sin(now * 3 + p.ph) * 26) * dt; p.y += p.vy * dt; p.rot += p.vr * dt; p.flip = Math.cos(now * 6 + p.ph); }
-    else { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += (p.star ? 160 : 400) * dt; if (p.star) p.rot += 3 * dt; }
-    p.life -= dt;
-  }
-  if (particles.length) particles = particles.filter(p => p.life > 0);
-  for (const f of floaters) { f.y -= 36 * dt; f.life -= dt; }
-  if (floaters.length) floaters = floaters.filter(f => f.life > 0);
-  if (toast) { toast.life -= dt; if (toast.life <= 0) toast = null; }
-  if (slotFx) { slotFx.life -= dt; if (slotFx.life <= 0) slotFx = null; }
-  shake = Math.max(0, shake - dt); flash = Math.max(0, flash - dt);
-  segAnim += (diff - segAnim) * Math.min(1, dt * 14); if (Math.abs(diff - segAnim) < 0.002) segAnim = diff;
-  if (state === 'win' && lastResult) { const { py } = panelGeom();
-    for (let i = 0; i < lastResult.stars; i++) if (!starPopped[i] && now - panelAt >= STAR_D[i] + 0.12) { starPopped[i] = true; starBurst(W / 2 + STAR_X[i], py + 122 - (i === 1 ? 6 : 0)); sfx.click(); } }
-  if (state !== 'play') return;
-  elapsed += dt; timeLeft -= dt;
-  for (const f of flyers) f.k = Math.min(1, f.k + dt / 0.16);
-  if (flyers.length && flyers.every(f => f.k >= 1)) flyers = [];
-  for (const t of tiles) {
-    if (t.wrong > 0) t.wrong = Math.max(0, t.wrong - dt);
-    if (t.nudge > 0) t.nudge = Math.max(0, t.nudge - dt);
-    if (t.alive && t.ry !== t.row) {
-      if (t.ry < t.row) { t.vy += 46 * dt; t.ry = Math.min(t.row, t.ry + t.vy * dt); }
-      if (t.ry >= t.row) { t.ry = t.row; t.vy = 0; }
-    }
-  }
-  if (timeLeft <= 0) { timeLeft = 0; lose('时间到了'); return; }
-  if (!sel.length && !tiles.some(t => t.alive)) win();
+function mist(y, h, a) { const g = ctx.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, `rgba(${C.mist},0)`); g.addColorStop(0.5, `rgba(${C.mist},${a})`); g.addColorStop(1, `rgba(${C.mist},0)`); ctx.fillStyle = g; ctx.fillRect(0, y, W, h); }
+function cloud(x, y, s, col, lw) {
+  ctx.save(); ctx.strokeStyle = col; ctx.lineWidth = lw || Math.max(1.2, s * 0.09); ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.arc(x, y, s * 0.42, Math.PI * 0.85, Math.PI * 2.05); ctx.arc(x + s * 0.66, y + s * 0.08, s * 0.28, Math.PI * 1.05, Math.PI * 2.3); ctx.stroke();
+  ctx.beginPath(); ctx.arc(x, y, s * 0.2, Math.PI * 0.1, Math.PI * 1.6); ctx.stroke();
+  ctx.beginPath(); ctx.arc(x - s * 0.62, y + s * 0.12, s * 0.24, Math.PI * 0.2, Math.PI * 1.9, false); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x - s * 0.95, y + s * 0.42); ctx.quadraticCurveTo(x, y + s * 0.62, x + s * 1.1, y + s * 0.38); ctx.stroke();
+  ctx.restore();
 }
-
-// ---------- 图标（全部代码绘制） ----------
-const easeOutBack = t => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); };
-function drawIcon(name, x, y, s, col, bgc) {
-  ctx.save(); ctx.translate(x, y); ctx.strokeStyle = col; ctx.fillStyle = col;
-  ctx.lineWidth = Math.max(1.6, s * 0.12); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  const h = s / 2;
-  if (name === 'home') {
-    ctx.beginPath(); ctx.moveTo(-h * 0.9, -h * 0.05); ctx.lineTo(0, -h * 0.85); ctx.lineTo(h * 0.9, -h * 0.05); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(-h * 0.62, -h * 0.25); ctx.lineTo(-h * 0.62, h * 0.8); ctx.lineTo(h * 0.62, h * 0.8); ctx.lineTo(h * 0.62, -h * 0.25); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(-h * 0.18, h * 0.8); ctx.lineTo(-h * 0.18, h * 0.3); ctx.lineTo(h * 0.18, h * 0.3); ctx.lineTo(h * 0.18, h * 0.8); ctx.stroke();
-  } else if (name === 'restart') {
-    const R = h * 0.68, a1 = Math.PI * 1.5;
-    ctx.beginPath(); ctx.arc(0, 0, R, -Math.PI * 0.12, a1 - 0.25); ctx.stroke();
-    const ex = Math.cos(a1 - 0.25) * R, ey = Math.sin(a1 - 0.25) * R, tx = -Math.sin(a1 - 0.25), ty = Math.cos(a1 - 0.25), nx = Math.cos(a1 - 0.25), ny = Math.sin(a1 - 0.25);
-    ctx.beginPath(); ctx.moveTo(ex + tx * h * 0.42, ey + ty * h * 0.42); ctx.lineTo(ex + nx * h * 0.3 - tx * h * 0.05, ey + ny * h * 0.3 - ty * h * 0.05);
-    ctx.lineTo(ex - nx * h * 0.3 - tx * h * 0.05, ey - ny * h * 0.3 - ty * h * 0.05); ctx.closePath(); ctx.lineWidth = s * 0.06; ctx.stroke(); ctx.fill();
-  } else if (name === 'bulb') {
-    ctx.beginPath(); ctx.arc(0, -h * 0.2, h * 0.55, Math.PI * 0.8, Math.PI * 2.2); ctx.lineTo(h * 0.25, h * 0.45); ctx.lineTo(-h * 0.25, h * 0.45); ctx.closePath(); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(-h * 0.22, h * 0.75); ctx.lineTo(h * 0.22, h * 0.75); ctx.stroke();
-  } else if (name === 'play') {
-    ctx.beginPath(); ctx.moveTo(-h * 0.45, -h * 0.65); ctx.lineTo(h * 0.7, 0); ctx.lineTo(-h * 0.45, h * 0.65); ctx.closePath(); ctx.lineWidth = s * 0.08; ctx.stroke(); ctx.fill();
-  } else if (name === 'next') {
-    ctx.beginPath(); ctx.moveTo(-h * 0.7, 0); ctx.lineTo(h * 0.6, 0); ctx.moveTo(h * 0.1, -h * 0.5); ctx.lineTo(h * 0.65, 0); ctx.lineTo(h * 0.1, h * 0.5); ctx.stroke();
-  } else if (name === 'moon') {
-    ctx.beginPath(); ctx.arc(0, 0, h * 0.72, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = bgc; ctx.beginPath(); ctx.arc(h * 0.38, -h * 0.3, h * 0.6, 0, Math.PI * 2); ctx.fill();
-  } else if (name === 'sun') {
-    ctx.beginPath(); ctx.arc(0, 0, h * 0.36, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; ctx.moveTo(Math.cos(a) * h * 0.6, Math.sin(a) * h * 0.6); ctx.lineTo(Math.cos(a) * h * 0.85, Math.sin(a) * h * 0.85); } ctx.stroke();
-  } else if (name === 'clock') {
-    ctx.beginPath(); ctx.arc(0, 0, h * 0.78, 0, Math.PI * 2); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(0, -h * 0.45); ctx.lineTo(0, 0); ctx.lineTo(h * 0.35, h * 0.2); ctx.stroke();
-  } else if (name === 'trophy') {
-    ctx.beginPath(); ctx.moveTo(-h * 0.55, -h * 0.7); ctx.lineTo(h * 0.55, -h * 0.7); ctx.lineTo(h * 0.45, -h * 0.05);
-    ctx.quadraticCurveTo(0, h * 0.35, -h * 0.45, -h * 0.05); ctx.closePath(); ctx.fill();
-    ctx.beginPath(); ctx.arc(-h * 0.58, -h * 0.4, h * 0.22, Math.PI * 0.5, Math.PI * 1.5); ctx.arc(h * 0.58, -h * 0.4, h * 0.22, -Math.PI * 0.5, Math.PI * 0.5); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(0, h * 0.15); ctx.lineTo(0, h * 0.5); ctx.stroke(); rr(-h * 0.4, h * 0.5, h * 0.8, h * 0.28, h * 0.08); ctx.fill();
-  } else if (name === 'shuffle') {
-    ctx.beginPath(); ctx.moveTo(-h * 0.8, -h * 0.45); ctx.bezierCurveTo(-h * 0.1, -h * 0.45, h * 0.0, h * 0.45, h * 0.6, h * 0.45);
-    ctx.moveTo(-h * 0.8, h * 0.45); ctx.bezierCurveTo(-h * 0.1, h * 0.45, h * 0.0, -h * 0.45, h * 0.6, -h * 0.45); ctx.stroke();
-    for (const sy of [-1, 1]) { ctx.beginPath(); ctx.moveTo(h * 0.9, sy * h * 0.45); ctx.lineTo(h * 0.5, sy * h * 0.45 - h * 0.28); ctx.lineTo(h * 0.5, sy * h * 0.45 + h * 0.28); ctx.closePath(); ctx.fill(); }
-  } else if (name === 'undo') {
-    ctx.beginPath(); ctx.moveTo(-h * 0.55, -h * 0.25); ctx.lineTo(h * 0.25, -h * 0.25); ctx.arc(h * 0.25, h * 0.15, h * 0.4, -Math.PI / 2, Math.PI / 2); ctx.lineTo(-h * 0.25, h * 0.55); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(-h * 0.8, -h * 0.25); ctx.lineTo(-h * 0.38, -h * 0.6); ctx.lineTo(-h * 0.38, h * 0.1); ctx.closePath(); ctx.fill();
-  } else if (name === 'x') {
-    ctx.beginPath(); ctx.moveTo(-h * 0.5, -h * 0.5); ctx.lineTo(h * 0.5, h * 0.5); ctx.moveTo(h * 0.5, -h * 0.5); ctx.lineTo(-h * 0.5, h * 0.5); ctx.stroke();
-  } else if (name === 'grid') {
-    for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) { rr(-h * 0.75 + i * h * 0.85, -h * 0.75 + j * h * 0.85, h * 0.65, h * 0.65, h * 0.15); ctx.fill(); }
-  } else if (name === 'face') {
-    ctx.beginPath(); ctx.arc(0, 0, h * 0.8, 0, Math.PI * 2); ctx.stroke();
-    ctx.beginPath(); ctx.arc(-h * 0.3, -h * 0.15, h * 0.09, 0, Math.PI * 2); ctx.arc(h * 0.3, -h * 0.15, h * 0.09, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(0, h * 0.55, h * 0.32, Math.PI * 1.15, Math.PI * 1.85); ctx.stroke();
+// 回纹边框：双线 + 四角回纹
+function fretFrame(x, y, w, h, col, s) {
+  s = s || 10; ctx.save(); ctx.strokeStyle = col; ctx.lineWidth = 1.2; ctx.lineJoin = 'miter';
+  ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1); ctx.strokeRect(x + s + 3.5, y + 3.5, w - s * 2 - 7, h - 7);
+  ctx.strokeRect(x + 3.5, y + s + 3.5, w - 7, h - s * 2 - 7);
+  const P = [[0, 1], [0, 0], [1, 0], [1, 0.7], [0.32, 0.7], [0.32, 0.34], [0.66, 0.34]];
+  for (const [cx, cy, sx, sy] of [[x + 4, y + 4, 1, 1], [x + w - 4, y + 4, -1, 1], [x + 4, y + h - 4, 1, -1], [x + w - 4, y + h - 4, -1, -1]]) {
+    ctx.beginPath(); P.forEach(([a, b], i) => { const px = cx + a * s * sx, py = cy + b * s * sy; i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }); ctx.stroke();
   }
   ctx.restore();
 }
-function card(x, y, w, h, r, fill) {
-  ctx.fillStyle = C.shadow; rr(x, y + 2, w, h, r); ctx.fill();
-  ctx.fillStyle = fill || C.card; rr(x, y, w, h, r); ctx.fill();
-  ctx.strokeStyle = C.cardEdge; ctx.lineWidth = 1; ctx.stroke();
+function buildBg() {
+  bgLayer = makeLayer(W, H);
+  withCtx(bgLayer.g, () => {
+    const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, C.sky || C.bg); g.addColorStop(0.55, C.bg); g.addColorStop(1, C.bg2);
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    const r = rngOf(7);
+    // 宣纸纤维
+    ctx.lineWidth = 0.6;
+    for (let i = 0; i < Math.round(W * H / 320); i++) { const x = r() * W, y = r() * H, a = r() * Math.PI, l = 3 + r() * 10;
+      ctx.strokeStyle = theme === 'dark' ? `rgba(200,210,230,${0.02 + r() * 0.03})` : `rgba(110,85,40,${0.03 + r() * 0.05})`;
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); ctx.stroke(); }
+    // 日 / 月
+    const mx = W * 0.8, my = H * 0.13, mr = Math.min(W, H) * 0.075;
+    if (theme === 'dark') {
+      const hg = ctx.createRadialGradient(mx, my, mr * 0.6, mx, my, mr * 3.2); hg.addColorStop(0, 'rgba(239,224,176,.25)'); hg.addColorStop(1, 'rgba(239,224,176,0)');
+      ctx.fillStyle = hg; ctx.fillRect(mx - mr * 3.2, my - mr * 3.2, mr * 6.4, mr * 6.4);
+      ctx.fillStyle = C.moon; ctx.beginPath(); ctx.arc(mx, my, mr, 0, Math.PI * 2); ctx.fill();
+      for (let i = 0; i < 40; i++) { ctx.fillStyle = `rgba(239,226,194,${0.2 + r() * 0.5})`; ctx.fillRect(r() * W, r() * H * 0.45, 1.2, 1.2); }
+    } else { ctx.globalAlpha = C.moonA; ctx.fillStyle = C.moon; ctx.beginPath(); ctx.arc(mx, my, mr, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1; }
+    // 远山、近山（上下各一组），层层淡墨
+    const dk = theme === 'dark';
+    ridge(H * 0.30, H * 0.12, 11, C.mount, dk ? 0.55 : 0.10, 0);
+    ridge(H * 0.34, H * 0.08, 12, C.mount, dk ? 0.7 : 0.16, 0);
+    mist(H * 0.26, H * 0.16, 0.7);
+    ridge(H * 0.80, H * 0.16, 21, C.mount, dk ? 0.75 : 0.14, dk ? 0.9 : 0.05);
+    ridge(H * 0.86, H * 0.12, 22, C.mount, dk ? 0.85 : 0.24, dk ? 0.95 : 0.1);
+    mist(H * 0.76, H * 0.12, 0.55);
+    ridge(H * 0.95, H * 0.08, 23, C.mount, dk ? 0.9 : 0.34, dk ? 1 : 0.18);
+    // 飞鸟
+    ctx.strokeStyle = `rgba(${C.mount},${dk ? 0.6 : 0.45})`; ctx.lineWidth = 1.2;
+    for (let i = 0; i < 4; i++) { const bx = W * (0.14 + i * 0.05 + r() * 0.03), by = H * (0.085 + r() * 0.04), s = 4 + r() * 3;
+      ctx.beginPath(); ctx.moveTo(bx - s, by - s * 0.3); ctx.quadraticCurveTo(bx - s * 0.4, by - s * 0.6, bx, by); ctx.quadraticCurveTo(bx + s * 0.4, by - s * 0.6, bx + s, by - s * 0.3); ctx.stroke(); }
+  });
 }
-let pressK = null, pressAt = -9, btnBusy = false;
-function accentGrad(x, y, w, h) { const g = ctx.createLinearGradient(x, y, x + w, y + h); g.addColorStop(0, C.accent2); g.addColorStop(1, C.accent); return g; }
-function button(x, y, w, h, label, cb, style, icon, key) {
-  key = key || label || icon; buttons.push({ x, y, w, h, cb, key });
-  const pr = pressK === key ? clamp((now - pressAt) / 0.2, 0, 1) : 1, sc = 1 - 0.08 * Math.sin(Math.PI * pr);
-  ctx.save(); ctx.translate(x + w / 2, y + h / 2); ctx.scale(sc, sc); ctx.translate(-x - w / 2, -y - h / 2);
-  const r = Math.min(h, w) / 2; let fg = C.text;
-  if (style === 'primary') {
-    ctx.fillStyle = C.accentShadow; rr(x, y + 4, w, h, r); ctx.fill();
-    ctx.fillStyle = accentGrad(x, y, w, h); rr(x, y, w, h, r); ctx.fill();
-    ctx.fillStyle = 'rgba(255,255,255,.18)'; rr(x + 6, y + 3, w - 12, h * 0.42, h * 0.21); ctx.fill();
-    fg = '#fff';
-  } else if (style === 'ink') {
-    ctx.fillStyle = C.shadow; rr(x, y + 3, w, h, r); ctx.fill();
-    ctx.fillStyle = C.ink; rr(x, y, w, h, r); ctx.fill(); fg = C.inkText;
-  } else if (style === 'ghost') { fg = C.sub; }
-  else { card(x, y, w, h, r); }
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = fg;
-  const fs = style === 'ghost' ? 14 : Math.round(clamp(h * 0.34, 13, 20));
-  ctx.font = `${style === 'ghost' ? 500 : 700} ${fs}px ${FONT}`;
-  const tw = label ? ctx.measureText(label).width : 0, is = style === 'round' ? h * 0.46 : fs * 1.1, gap = label && icon ? 8 : 0;
-  const tot = (icon ? is : 0) + gap + tw, sx = x + w / 2 - tot / 2;
-  if (icon) drawIcon(icon, sx + is / 2, y + h / 2, is, fg, style === 'primary' ? C.accent : C.card);
-  if (label) { ctx.fillStyle = fg; ctx.textAlign = 'left'; ctx.fillText(label, sx + (icon ? is : 0) + gap, y + h / 2 + 1); }
+
+// ---------- 小部件 ----------
+function drawSeal(x, y, s, text, rot, alpha, fill) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(rot || 0); ctx.globalAlpha = alpha == null ? 1 : alpha;
+  ctx.fillStyle = fill || C.red; rr(-s / 2, -s / 2, s, s, s * 0.12); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,240,220,.75)'; ctx.lineWidth = Math.max(1, s * 0.045); rr(-s / 2 + s * 0.09, -s / 2 + s * 0.09, s * 0.82, s * 0.82, s * 0.06); ctx.stroke();
+  const ch = [...text]; ctx.fillStyle = '#fff6e6'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  if (ch.length === 1) { ctx.font = `700 ${Math.round(s * 0.58)}px ${KFONT}`; ctx.fillText(ch[0], 0, s * 0.03); }
+  else if (ch.length === 2) { ctx.font = `700 ${Math.round(s * 0.36)}px ${KFONT}`; ctx.fillText(ch[0], 0, -s * 0.18); ctx.fillText(ch[1], 0, s * 0.21); }
+  else { ctx.font = `700 ${Math.round(s * 0.33)}px ${KFONT}`; ctx.fillText(ch[0], s * 0.18, -s * 0.17); ctx.fillText(ch[1], s * 0.18, s * 0.2); ctx.fillText(ch[2], -s * 0.18, -s * 0.17); ctx.fillText(ch[3], -s * 0.18, s * 0.2); }
   ctx.restore();
 }
 function starPath(x, y, r, rot) {
   ctx.beginPath();
-  for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + (rot || 0) + i * Math.PI / 5, rad = i % 2 ? r * 0.48 : r; ctx.lineTo(x + Math.cos(a) * rad, y + Math.sin(a) * rad); }
+  for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + (rot || 0) + i * Math.PI / 5, rad = i % 2 ? r * 0.45 : r; ctx.lineTo(x + Math.cos(a) * rad, y + Math.sin(a) * rad); }
   ctx.closePath();
 }
-function drawStar(x, y, r, on, sc) {
-  starPath(x, y, r); ctx.fillStyle = C.track; ctx.fill();
-  if (!on || sc <= 0) return;
-  ctx.save(); ctx.translate(x, y); ctx.scale(sc, sc); ctx.lineJoin = 'round';
-  starPath(0, 0, r); ctx.fillStyle = '#ffc93c'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = '#f2a20c'; ctx.stroke();
-  starPath(0, -r * 0.08, r * 0.55); ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fill();
+// 朱印星：亮的是朱红方印（中间镂出一颗星），暗的是淡墨虚框
+function sealStar(x, y, s, on, sc, rot) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(rot || 0);
+  ctx.setLineDash([3, 3]); ctx.strokeStyle = C.faint; ctx.lineWidth = 1.4; rr(-s / 2, -s / 2, s, s, s * 0.12); ctx.stroke(); ctx.setLineDash([]);
+  if (on && sc > 0) { ctx.scale(sc, sc); ctx.fillStyle = C.red; rr(-s / 2, -s / 2, s, s, s * 0.12); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,240,220,.8)'; ctx.lineWidth = 1.5; rr(-s / 2 + 3.5, -s / 2 + 3.5, s - 7, s - 7, s * 0.06); ctx.stroke();
+    starPath(0, s * 0.03, s * 0.3, 0); ctx.fillStyle = '#fff6e6'; ctx.fill(); }
   ctx.restore();
+}
+function drawIcon(name, x, y, s, col) {
+  ctx.save(); ctx.translate(x, y); ctx.strokeStyle = col; ctx.fillStyle = col;
+  ctx.lineWidth = Math.max(1.6, s * 0.11); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  const h = s / 2;
+  if (name === 'home') {
+    ctx.beginPath(); ctx.moveTo(-h * 0.95, -h * 0.05); ctx.quadraticCurveTo(-h * 0.3, -h * 0.55, 0, -h * 0.85); ctx.quadraticCurveTo(h * 0.3, -h * 0.55, h * 0.95, -h * 0.05); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-h * 0.6, -h * 0.2); ctx.lineTo(-h * 0.6, h * 0.78); ctx.lineTo(h * 0.6, h * 0.78); ctx.lineTo(h * 0.6, -h * 0.2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-h * 0.18, h * 0.78); ctx.lineTo(-h * 0.18, h * 0.3); ctx.lineTo(h * 0.18, h * 0.3); ctx.lineTo(h * 0.18, h * 0.78); ctx.stroke();
+  } else if (name === 'gear') {
+    ctx.beginPath(); for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; ctx.moveTo(Math.cos(a) * h * 0.55, Math.sin(a) * h * 0.55); ctx.lineTo(Math.cos(a) * h * 0.88, Math.sin(a) * h * 0.88); } ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, 0, h * 0.55, 0, Math.PI * 2); ctx.stroke(); ctx.beginPath(); ctx.arc(0, 0, h * 0.2, 0, Math.PI * 2); ctx.fill();
+  } else if (name === 'restart') {
+    ctx.beginPath(); ctx.arc(0, 0, h * 0.66, -Math.PI * 0.1, Math.PI * 1.45); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(h * 0.15, -h * 0.95); ctx.lineTo(h * 0.62, -h * 0.62); ctx.lineTo(h * 0.12, -h * 0.35); ctx.closePath(); ctx.fill();
+  } else if (name === 'shuffle') {
+    ctx.beginPath(); ctx.moveTo(-h * 0.8, -h * 0.45); ctx.bezierCurveTo(-h * 0.1, -h * 0.45, 0, h * 0.45, h * 0.6, h * 0.45);
+    ctx.moveTo(-h * 0.8, h * 0.45); ctx.bezierCurveTo(-h * 0.1, h * 0.45, 0, -h * 0.45, h * 0.6, -h * 0.45); ctx.stroke();
+    for (const sy of [-1, 1]) { ctx.beginPath(); ctx.moveTo(h * 0.92, sy * h * 0.45); ctx.lineTo(h * 0.5, sy * h * 0.45 - h * 0.28); ctx.lineTo(h * 0.5, sy * h * 0.45 + h * 0.28); ctx.closePath(); ctx.fill(); }
+  } else if (name === 'out') {
+    ctx.beginPath(); ctx.moveTo(-h * 0.8, h * 0.05); ctx.lineTo(-h * 0.8, h * 0.8); ctx.lineTo(h * 0.8, h * 0.8); ctx.lineTo(h * 0.8, h * 0.05); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, h * 0.45); ctx.lineTo(0, -h * 0.75); ctx.moveTo(-h * 0.42, -h * 0.35); ctx.lineTo(0, -h * 0.8); ctx.lineTo(h * 0.42, -h * 0.35); ctx.stroke();
+  } else if (name === 'bulb') {
+    ctx.beginPath(); ctx.arc(0, -h * 0.2, h * 0.55, Math.PI * 0.8, Math.PI * 2.2); ctx.lineTo(h * 0.25, h * 0.45); ctx.lineTo(-h * 0.25, h * 0.45); ctx.closePath(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-h * 0.22, h * 0.78); ctx.lineTo(h * 0.22, h * 0.78); ctx.stroke();
+  } else if (name === 'joker') {
+    ctx.font = `700 ${Math.round(s * 0.9)}px ${KFONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('万', 0, s * 0.04);
+  } else if (name === 'moon') {
+    ctx.beginPath(); ctx.arc(0, 0, h * 0.72, Math.PI * 0.35, Math.PI * 1.65); ctx.arc(h * 0.38, -h * 0.05, h * 0.62, Math.PI * 1.5, Math.PI * 0.5, true); ctx.closePath(); ctx.fill();
+  } else if (name === 'sun') {
+    ctx.beginPath(); ctx.arc(0, 0, h * 0.36, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; ctx.moveTo(Math.cos(a) * h * 0.6, Math.sin(a) * h * 0.6); ctx.lineTo(Math.cos(a) * h * 0.86, Math.sin(a) * h * 0.86); } ctx.stroke();
+  } else if (name === 'sound' || name === 'mute') {
+    ctx.beginPath(); ctx.moveTo(-h * 0.8, -h * 0.28); ctx.lineTo(-h * 0.4, -h * 0.28); ctx.lineTo(h * 0.05, -h * 0.7); ctx.lineTo(h * 0.05, h * 0.7); ctx.lineTo(-h * 0.4, h * 0.28); ctx.lineTo(-h * 0.8, h * 0.28); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); if (name === 'sound') { ctx.arc(h * 0.1, 0, h * 0.45, -0.8, 0.8); ctx.moveTo(h * 0.1 + Math.cos(-0.8) * h * 0.78, Math.sin(-0.8) * h * 0.78); ctx.arc(h * 0.1, 0, h * 0.78, -0.8, 0.8); }
+    else { ctx.moveTo(h * 0.35, -h * 0.35); ctx.lineTo(h * 0.95, h * 0.35); ctx.moveTo(h * 0.95, -h * 0.35); ctx.lineTo(h * 0.35, h * 0.35); } ctx.stroke();
+  } else if (name === 'next') {
+    ctx.beginPath(); ctx.moveTo(-h * 0.7, 0); ctx.lineTo(h * 0.6, 0); ctx.moveTo(h * 0.1, -h * 0.5); ctx.lineTo(h * 0.65, 0); ctx.lineTo(h * 0.1, h * 0.5); ctx.stroke();
+  } else if (name === 'play') {
+    ctx.beginPath(); ctx.moveTo(-h * 0.45, -h * 0.65); ctx.lineTo(h * 0.7, 0); ctx.lineTo(-h * 0.45, h * 0.65); ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+}
+let pressK = null, pressAt = -9, btnBusy = false;
+// 按钮样式：seal 朱印红底金边、ink 浓墨底、paper 宣纸底墨边、round 圆形墨点
+function button(x, y, w, h, label, cb, style, icon, key, disabled) {
+  key = key || label || icon; buttons.push({ x, y, w, h, cb, key, disabled });
+  const pr = pressK === key ? clamp((now - pressAt) / 0.2, 0, 1) : 1, sc = 1 - 0.08 * Math.sin(Math.PI * pr);
+  ctx.save(); ctx.translate(x + w / 2, y + h / 2); ctx.scale(sc, sc); ctx.translate(-x - w / 2, -y - h / 2);
+  if (disabled) ctx.globalAlpha = 0.4;
+  let fg = C.ink;
+  if (style === 'seal') {
+    ctx.fillStyle = 'rgba(0,0,0,.18)'; rr(x + 2, y + 4, w, h, 8); ctx.fill();
+    const g = ctx.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, C.red2); g.addColorStop(1, C.red);
+    ctx.fillStyle = g; rr(x, y, w, h, 8); ctx.fill();
+    ctx.strokeStyle = C.gold2; ctx.lineWidth = 1.5; rr(x + 4, y + 4, w - 8, h - 8, 5); ctx.stroke();
+    if (w >= 200) { cloud(x + 18, y + h / 2 - 2, 9, 'rgba(255,230,180,.45)', 1.2); cloud(x + w - 22, y + h / 2 - 2, 9, 'rgba(255,230,180,.45)', 1.2); }
+    fg = '#fff6e2';
+  } else if (style === 'ink') {
+    ctx.fillStyle = 'rgba(0,0,0,.18)'; rr(x + 1, y + 3, w, h, 8); ctx.fill();
+    ctx.fillStyle = C.btn; rr(x, y, w, h, 8); ctx.fill(); ctx.strokeStyle = C.gold; ctx.lineWidth = 1; rr(x + 3, y + 3, w - 6, h - 6, 6); ctx.stroke(); fg = C.btnInk;
+  } else if (style === 'paper') {
+    ctx.fillStyle = C.panel; rr(x, y, w, h, 8); ctx.fill(); ctx.strokeStyle = C.ink2; ctx.lineWidth = 1.2; rr(x + 0.5, y + 0.5, w - 1, h - 1, 8); ctx.stroke();
+  } else if (style === 'round') {
+    ctx.fillStyle = 'rgba(0,0,0,.16)'; ctx.beginPath(); ctx.arc(x + w / 2 + 1, y + h / 2 + 2, w / 2, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = C.btn; ctx.beginPath(); ctx.arc(x + w / 2, y + h / 2, w / 2, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = C.gold; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(x + w / 2, y + h / 2, w / 2 - 3, 0, Math.PI * 2); ctx.stroke(); fg = C.btnInk;
+  } else if (style === 'ghost') fg = C.sub;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = fg;
+  const fs = style === 'ghost' ? 15 : Math.round(clamp(h * 0.38, 14, 22));
+  ctx.font = `700 ${fs}px ${KFONT}`;
+  const tw = label ? ctx.measureText(label).width : 0, is = style === 'round' ? w * 0.48 : fs * 1.05, gap = label && icon ? 8 : 0;
+  const tot = (icon ? is : 0) + gap + tw, sx = x + w / 2 - tot / 2;
+  if (icon) drawIcon(icon, sx + is / 2, y + h / 2, is, fg);
+  if (label) { ctx.fillStyle = fg; ctx.textAlign = 'left'; ctx.fillText(label, sx + (icon ? is : 0) + gap, y + h / 2 + 1); }
+  ctx.restore();
+}
+// 榜文：皇榜黄底、朱红边，显示功名与晋升进度
+function drawBang(x, y, w, h, big) {
+  const c = maxLevel - 1, r = rankOf(c), nx = r + 1 < RANKS.length ? r + 1 : -1;
+  ctx.fillStyle = 'rgba(0,0,0,.14)'; rr(x + 1, y + 2, w, h, 4); ctx.fill();
+  const g = ctx.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, C.bang); g.addColorStop(1, C.bang2); ctx.fillStyle = g; rr(x, y, w, h, 4); ctx.fill();
+  ctx.strokeStyle = C.red; ctx.lineWidth = 1.5; rr(x + 2.5, y + 2.5, w - 5, h - 5, 3); ctx.stroke();
+  const s = h - 8; drawSeal(x + 6 + s / 2, y + h / 2, s, RANKS[r], -0.04);
+  const tx = x + 12 + s, tw = w - (12 + s) - (nx >= 0 ? s + 14 : 10);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = C.bangInk; ctx.font = `700 ${big ? 15 : 13}px ${KFONT}`;
+  const msg = nx >= 0 ? `再通过 ${RANK_AT[nx] - c} 关 · 晋升${RANKS[nx]}` : '已登状元 · 金榜题名';
+  ctx.fillText(msg, tx + tw / 2, y + h * 0.36, tw);
+  const p = nx >= 0 ? (c - RANK_AT[r]) / (RANK_AT[nx] - RANK_AT[r]) : 1, ty = y + h * 0.7, th = Math.max(4, h * 0.14);
+  ctx.fillStyle = C.track; rr(tx, ty - th / 2, tw, th, th / 2); ctx.fill();
+  ctx.fillStyle = C.red; rr(tx, ty - th / 2, Math.max(th, tw * p), th, th / 2); ctx.fill();
+  if (nx >= 0) { const sx = x + w - 6 - s / 2; ctx.save(); ctx.setLineDash([3, 2]); ctx.strokeStyle = C.red; ctx.lineWidth = 1.2; rr(sx - s / 2, y + 4, s, s, 3); ctx.stroke(); ctx.restore();
+    ctx.fillStyle = C.red; ctx.font = `700 ${Math.round(s * 0.36)}px ${KFONT}`; ctx.fillText(RANKS[nx][0], sx, y + h / 2 - s * 0.18); ctx.fillText(RANKS[nx][1], sx, y + h / 2 + s * 0.21); }
 }
 
-function drawHUD() {
-  const top = 8, ch = 48;
-  ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
-  ctx.font = `800 17px ${FONT}`; const t1 = `第 ${level} 关`, w1a = ctx.measureText(t1).width;
-  ctx.font = `12px ${FONT}`; const t2 = `${DIFFS[diff].name} · ${MODES[mode].name}`, w1b = ctx.measureText(t2).width;
-  const lw = Math.max(w1a, w1b) + 32; card(14, top, lw, ch, 18);
-  ctx.fillStyle = C.text; ctx.font = `800 17px ${FONT}`; ctx.fillText(t1, 30, top + 18);
-  ctx.fillStyle = C.sub; ctx.font = `12px ${FONT}`; ctx.fillText(t2, 30, top + 35);
-  ctx.font = `800 18px ${FONT}`; const sv = String(score), rw = Math.max(76, ctx.measureText(sv).width + 32), rx = W - 14 - rw;
-  card(rx, top, rw, ch, 18); ctx.textAlign = 'center';
-  ctx.fillStyle = C.sub; ctx.font = `12px ${FONT}`; ctx.fillText('得分', rx + rw / 2, top + 16);
-  ctx.fillStyle = C.text; ctx.font = `800 18px ${FONT}`; ctx.fillText(sv, rx + rw / 2, top + 33);
-  // 中：实时星级（失误越多星越少）
-  const stars = mistakes === 0 ? 3 : mistakes <= 2 ? 2 : 1;
-  const gapL = 14 + lw + 8, gapR = rx - 8, sp = clamp((gapR - gapL - 20) / 3, 18, 28), hw = sp * 3 + 14;
-  const hx = clamp(W / 2 - hw / 2, gapL, gapR - hw);
-  card(hx, top, hw, ch, ch / 2);
-  for (let i = 0; i < 3; i++) drawStar(hx + 7 + sp * (i + 0.5), top + ch / 2 + 1, sp * 0.4, i < stars, 1);
-  // 倒计时
-  const pillW = 66, by = 66, bx = 14, bw2 = W - 28 - pillW - 8, bh2 = 12, r = clamp(timeLeft / timeTotal, 0, 1);
-  ctx.fillStyle = C.track; rr(bx, by + 8, bw2, bh2, bh2 / 2); ctx.fill();
-  if (r > 0.01) {
-    const cols2 = r > 0.5 ? C.tGood : r > 0.2 ? C.tMid : C.tLow, g = ctx.createLinearGradient(bx, 0, bx + bw2, 0);
-    g.addColorStop(0, cols2[0]); g.addColorStop(1, cols2[1]);
-    ctx.globalAlpha = r <= 0.2 ? 0.65 + 0.35 * Math.abs(Math.sin(now * 6)) : 1;
-    ctx.fillStyle = g; rr(bx, by + 8, Math.max(bh2, bw2 * r), bh2, bh2 / 2); ctx.fill();
-    ctx.fillStyle = 'rgba(255,255,255,.3)'; rr(bx + 3, by + 9.5, Math.max(4, bw2 * r - 6), 3.5, 1.75); ctx.fill();
-    ctx.globalAlpha = 1;
-  }
-  const px = W - 14 - pillW; card(px, by, pillW, 28, 14);
-  const low = r <= 0.2; drawIcon('clock', px + 18, by + 14, 15, low ? C.red : C.sub);
-  ctx.fillStyle = low ? C.red : C.text; ctx.font = `700 14px ${FONT}`; ctx.textAlign = 'left'; ctx.fillText(`${Math.ceil(timeLeft)}s`, px + 30, by + 15);
-  // 第三行：剩余组数 · 连击 · 玩法说明
-  const ry = 104;
-  drawIcon('grid', 24, ry, 12, C.sub); ctx.fillStyle = C.sub; ctx.font = `13px ${FONT}`; ctx.textAlign = 'left'; ctx.fillText(`剩余 ${groups} 组`, 36, ry + 1);
-  ctx.textAlign = 'right'; ctx.fillText(`${L} 字 · 从上往下取`, W - 16, ry + 1);
-  if (combo >= 2 && elapsed - lastClear < 4) {
-    const t = now - comboAt, sc = 1 + 0.38 * Math.exp(-t * 9) * Math.cos(t * 26);
-    ctx.save(); ctx.translate(W / 2, ry); ctx.scale(sc, sc);
-    ctx.font = `800 14px ${FONT}`; const txt = `连击 ×${combo}`, tw = ctx.measureText(txt).width + 24;
-    ctx.fillStyle = C.accentShadow; rr(-tw / 2, -11 + 2, tw, 22, 11); ctx.fill();
-    ctx.fillStyle = accentGrad(-tw / 2, -11, tw, 22); rr(-tw / 2, -11, tw, 22, 11); ctx.fill();
-    ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.fillText(txt, 0, 1); ctx.restore();
-  }
+// ---------- 主题 ----------
+function applyThemeChrome() {
+  document.documentElement.style.background = document.body.style.background = C.bg;
+  const m = document.querySelector('meta[name=theme-color]'); if (m) m.setAttribute('content', C.bg);
 }
-// 选字槽：显示已选的字（飞行中的字先不画，由 drawFlyers 画）
-function drawSlots() {
-  const x0 = 14, w0 = W - 28, y0 = SLOT_Y, h0 = SLOT_H;
-  card(x0, y0, w0, h0, 22);
-  const fx = slotFx, showFx = fx && fx.chars && sel.length === 0;
-  const chars = showFx ? fx.chars : sel.map(id => tiles[id].ch);
-  const kindCol = showFx ? (fx.kind === 'ok' ? C.green : fx.kind === 'bad' ? C.red : C.gold) : (fx && fx.kind === 'warn' ? C.gold : null);
-  let jx = 0; if (fx && fx.kind !== 'ok') jx = Math.sin(fx.life * 50) * 4 * Math.min(1, fx.life * 3);
-  for (let i = 0; i < L; i++) {
-    const p = slotPos(i), x = p.x + jx, s = p.s, sy = p.y;
-    const ch = chars[i], flying = !showFx && flyers.some(f => f.i === i && f.k < 1);
-    if (ch && !flying) {
-      const sp = tileSprite(ch, hashStr(ch) % 8, s);
-      ctx.drawImage(sp.c, x, sy - 2, sp.w, sp.h);
-      if (kindCol) { ctx.strokeStyle = kindCol; ctx.lineWidth = 3; rr(x - 1.5, sy - 3.5, s + 3, s + 3, s * 0.24); ctx.stroke(); }
-    } else {
-      ctx.fillStyle = C.slot; rr(x, sy, s, s, s * 0.22); ctx.fill();
-      ctx.save(); ctx.setLineDash([4, 4]); ctx.strokeStyle = C.faint; ctx.lineWidth = 1.2; rr(x + 0.5, sy + 0.5, s - 1, s - 1, s * 0.22); ctx.stroke(); ctx.restore();
-      ctx.fillStyle = C.faint; ctx.font = `600 11px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(i + 1), x + s / 2, sy + s / 2);
-    }
-  }
-  if (sel.length) button(x0 + w0 - 50, y0 + (h0 - 36) / 2, 36, 36, '', () => undoAll(), 'round', 'x', 'clr');
+function setTheme(t) { theme = t === 'dark' ? 'dark' : 'light'; Object.assign(C, THEMES[theme]); boardLayer = null; bgLayer = null; menuLayer = null; panelLayer = null; sprites.clear(); applyThemeChrome(); persist(); dirty = true; }
+
+// ---------- 粒子 / 飘字 ----------
+function inkBurst(x, y, n, cols) {
+  for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2, s = 40 + Math.random() * 140;
+    particles.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 30, r: 1.5 + Math.random() * 3.5, age: 0, life: 0.5 + Math.random() * 0.4, col: cols[i % cols.length], g: 120 }); }
 }
-function drawFlyers() {
-  for (const f of flyers) {
-    if (f.k >= 1) continue;
-    const t = tiles[f.id], p = slotPos(f.i), e = 1 - Math.pow(1 - f.k, 3), ts = cs - 8;
-    const s = ts + (p.s - ts) * e, x = f.x0 + (p.x + p.s / 2 - f.x0) * e, y = f.y0 + (p.y + p.s / 2 - f.y0) * e - Math.sin(Math.PI * f.k) * 18;
-    const sp = tileSprite(t.ch, t.ci, Math.round(s)); ctx.drawImage(sp.c, x - s / 2, y - s / 2, sp.w, sp.h);
-  }
+function inkConfetti() {
+  const cols = [C.red, C.red2, C.gold, C.gold2];
+  for (let i = 0; i < 70; i++) particles.push({ x: Math.random() * W, y: -10 - Math.random() * H * 0.3, vx: (Math.random() - 0.5) * 40, vy: 60 + Math.random() * 90,
+    r: 3 + Math.random() * 4, age: 0, life: 2 + Math.random() * 1.2, col: cols[i % 4], g: 20, petal: true, rot: Math.random() * 6, vr: (Math.random() - 0.5) * 6 });
 }
-function drawBoard() {
-  if (!boardLayer) buildBoardLayer();
-  ctx.drawImage(boardLayer.c, boardLayer.x, boardLayer.y, boardLayer.w, boardLayer.h);
-  const ts = cs - 8, hide = DIFFS[diff].hide;
-  // 先画下层（行号大）再画上层，上层的字块压住下层的上半截
-  const list = []; for (const t of tiles) if (t.alive && !t.inSlot) list.push(t);
-  list.sort((a, b) => b.row - a.row);
-  for (const t of list) {
-    let [x, y] = tileXY(t);
-    const depth = stk[t.col].length - 1 - t.idx, top = depth === 0, hi = hintIds.indexOf(t.id);
-    if (t.wrong > 0) x += Math.sin(t.wrong * 60) * 4;
-    if (t.nudge > 0) x += Math.sin(t.nudge * 70) * 3;
-    const kind = top ? 0 : depth >= hide && hi < 0 ? 2 : 1;
-    const sp = tileSprite(t.ch, t.ci, ts, kind);
-    ctx.drawImage(sp.c, x - ts / 2, y - ts / 2, sp.w, sp.h);
-    if (top) { ctx.strokeStyle = C.topRing; ctx.lineWidth = 1.5; rr(x - ts / 2 + 0.75, y - ts / 2 + 0.75, ts - 1.5, ts - 1.5, ts * 0.22); ctx.stroke(); }
-    if (t.wrong > 0) { ctx.strokeStyle = C.red; ctx.lineWidth = 3; rr(x - ts / 2 - 1.5, y - ts / 2 - 1.5, ts + 3, ts + 3, ts * 0.24); ctx.stroke(); }
-    if (t.clock && kind !== 2) { const cx = x - ts / 2 + 7, cy = y - ts / 2 + 7; ctx.globalAlpha = top ? 1 : 0.7; ctx.fillStyle = C.clockBg; ctx.beginPath(); ctx.arc(cx, cy, 9, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = C.blue; ctx.lineWidth = 1.5; ctx.stroke(); drawIcon('clock', cx, cy, 13, C.blue); ctx.globalAlpha = 1; }
-  }
-  // 提示圈和序号最后画，被盖住的字也能看到序号
-  for (let hi = 0; hi < hintIds.length; hi++) {
-    const t = tiles[hintIds[hi]]; if (!t.alive || t.inSlot) continue;
-    let [x, y] = tileXY(t);
-      ctx.globalAlpha = 0.6 + 0.4 * Math.sin(now * 7); ctx.strokeStyle = '#ffbf1f'; ctx.lineWidth = 4; rr(x - ts / 2 - 3, y - ts / 2 - 3, ts + 6, ts + 6, ts * 0.27); ctx.stroke(); ctx.globalAlpha = 1;
-      const bx = x + ts / 2 - 4, by = y - ts / 2 + 4; ctx.fillStyle = '#f2a20c'; ctx.beginPath(); ctx.arc(bx, by, 10, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = C.card; ctx.lineWidth = 2; ctx.stroke(); ctx.fillStyle = '#fff'; ctx.font = `800 12px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(hi + 1), bx, by + 1);
-      }
-}
-function drawPlay() {
-  ctx.save();
-  if (shake > 0) ctx.translate((Math.random() - 0.5) * 8 * shake / 0.25, (Math.random() - 0.5) * 4 * shake / 0.25);
-  drawHUD(); drawSlots(); drawBoard(); drawFlyers();
-  ctx.restore();
-  if (flash > 0) { ctx.fillStyle = `rgba(230,57,70,${flash * 0.35})`; ctx.fillRect(0, 0, W, H); }
-  if (state === 'play') {
-    const B = bottomBar(); let x = B.x0;
-    button(x, B.by, B.d, B.d, '', () => { undoAll(true); state = 'menu'; }, 'round', 'home'); x += B.d + B.g;
-    button(x, B.by, B.d, B.d, '', shuffleBoard, 'round', 'shuffle'); x += B.d + B.g;
-    button(x, B.by, B.d, B.d, '', () => undo(), 'round', 'undo', 'undo'); x += B.d + B.g;
-    button(x, B.by, B.hw, B.d, '提示', useHint, 'primary', 'bulb', 'hint');
-    const bx = x + B.hw - 10, byy = B.by + 4; x += B.hw + B.g;
-    button(x, B.by, B.d, B.d, '', () => startLevel(level), 'round', 'restart');
-    ctx.fillStyle = hintsStock > 0 ? C.ink : C.faint; ctx.beginPath(); ctx.arc(bx, byy, 11, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = C.bg; ctx.lineWidth = 2; ctx.stroke();
-    ctx.fillStyle = C.inkText; ctx.font = `800 12px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(hintsStock), bx, byy + 1);
-  }
-}
-function bottomBar() { const d = 50, g = 10, hw = clamp(W - 28 - d * 4 - g * 4, 84, 140), tot = d * 4 + hw + g * 4; return { d, g, hw, x0: (W - tot) / 2, by: H - 70 }; }
 function drawFX() {
   for (const p of particles) {
-    ctx.globalAlpha = clamp(p.life * 2, 0, 1); ctx.fillStyle = p.col;
-    if (p.cf) { const c = Math.cos(p.rot), s = Math.sin(p.rot); ctx.setTransform(DPR * c, DPR * s, -DPR * s * p.flip, DPR * c * p.flip, DPR * p.x, DPR * p.y); ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h); }
-    else if (p.star) { ctx.setTransform(DPR, 0, 0, DPR, 0, 0); starPath(p.x, p.y, p.r, p.rot); ctx.fill(); }
+    ctx.globalAlpha = clamp(1 - p.age / p.life, 0, 1); ctx.fillStyle = p.col;
+    if (p.petal) { ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.beginPath(); ctx.ellipse(0, 0, p.r, p.r * 0.55, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
     else { ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill(); }
   }
-  ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.globalAlpha = 1;
-  for (const f of floaters) {
-    ctx.globalAlpha = clamp(f.life * 2, 0, 1); ctx.fillStyle = f.col; ctx.font = `800 ${f.big ? 24 : 15}px ${f.big ? KFONT : FONT}`;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineWidth = 4; ctx.lineJoin = 'round'; ctx.strokeStyle = C.card;
-    ctx.strokeText(f.text, f.x, f.y); ctx.fillText(f.text, f.x, f.y);
-  }
   ctx.globalAlpha = 1;
-  if (toast) {
-    ctx.font = `14px ${FONT}`; const tw = Math.min(W - 24, ctx.measureText(toast.text).width + 36);
-    ctx.globalAlpha = clamp(toast.life * 3, 0, 1);
-    ctx.fillStyle = C.toast; rr(W / 2 - tw / 2, H - 122, tw, 36, 18); ctx.fill();
-    ctx.fillStyle = C.toastText; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(toast.text, W / 2, H - 104, tw - 20);
-    ctx.globalAlpha = 1;
+  for (const f of floaters) {
+    const k = f.age / f.life, a = k < 0.15 ? k / 0.15 : k > 0.7 ? (1 - k) / 0.3 : 1, sc = k < 0.15 ? 0.8 + 0.2 * (k / 0.15) : 1;
+    ctx.save(); ctx.globalAlpha = clamp(a, 0, 1); ctx.translate(f.x, f.y - 26 * k); ctx.scale(sc, sc);
+    ctx.font = `700 ${f.fs}px ${KFONT}`; const tw = ctx.measureText(f.text).width;
+    // 一笔浓墨做底
+    ctx.fillStyle = theme === 'dark' ? 'rgba(5,9,16,.82)' : 'rgba(26,22,18,.86)';
+    ctx.beginPath(); ctx.moveTo(-tw / 2 - 22, -f.fs * 0.5); ctx.quadraticCurveTo(0, -f.fs * 0.78, tw / 2 + 26, -f.fs * 0.46);
+    ctx.lineTo(tw / 2 + 16, f.fs * 0.52); ctx.quadraticCurveTo(0, f.fs * 0.7, -tw / 2 - 18, f.fs * 0.5); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = C.gold2; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(f.text, 0, 2);
+    if (f.seal) drawSeal(tw / 2 + 22, -f.fs * 0.45, f.fs * 0.6, f.seal, 0.12);
+    ctx.restore();
   }
 }
 
-// 主菜单：散落的淡色字块（缓存成一张图，只做整体缓慢漂移）
-const DECO = '字消云散成语诗词春风明月山水花鸟书画琴棋江河日月星辰';
-function drawLogo(x, y, s) {
-  ctx.save();
-  ctx.fillStyle = C.accentShadow; rr(x - s / 2, y - s / 2 + 4, s, s, s * 0.28); ctx.fill();
-  ctx.fillStyle = accentGrad(x - s / 2, y - s / 2, s, s); rr(x - s / 2, y - s / 2, s, s, s * 0.28); ctx.fill();
-  ctx.fillStyle = 'rgba(255,255,255,.2)'; rr(x - s * 0.38, y - s * 0.42, s * 0.76, s * 0.22, s * 0.11); ctx.fill();
-  ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `700 ${Math.round(s * 0.62)}px ${KFONT}`; ctx.fillText('字', x, y + s * 0.03);
-  // 右上角小星光
-  ctx.fillStyle = '#ffe08a'; starPath(x + s * 0.5, y - s * 0.5, s * 0.13, 0.2); ctx.fill();
-  ctx.restore();
-}
-function drawMenu() {
-  if (!menuLayer) {
-    const M = 40, Ly = makeLayer(W + M * 2, H + M * 2), r = rngOf(42), sz = Math.max(40, Math.min(W, H) * 0.12);
-    withCtx(Ly.g, () => {
-      ctx.globalAlpha = C.deco; const n = Math.round((W + M * 2) * (H + M * 2) / (sz * sz * 6));
-      const chars = [...DECO];
-      for (let i = 0; i < n; i++) { const ch = chars[i % chars.length], s = sz * (0.7 + r() * 0.6);
-        const x = r() * (W + M * 2 - s), y = r() * (H + M * 2 - s), rot = (r() - 0.5) * 0.5;
-        ctx.save(); ctx.translate(x + s / 2, y + s / 2); ctx.rotate(rot); const sp = tileSprite(ch, hashStr(ch) % 8, Math.round(s)); ctx.drawImage(sp.c, -s / 2, -s / 2, sp.w, sp.h); ctx.restore(); }
-      ctx.globalAlpha = 1;
-    });
-    Ly.M = M; menuLayer = Ly;
-  }
-  ctx.drawImage(menuLayer.c, -menuLayer.M + Math.sin(now * 0.31) * 16, -menuLayer.M + Math.cos(now * 0.23) * 12, menuLayer.w, menuLayer.h);
-  const T = Math.min(52, W * 0.13), segW = Math.min(300, W - 56), bw2 = Math.min(280, W - 64);
-  const total = 72 + 18 + T + 16 + 22 + 30 + 34 + 44 + 26 + 28 + 60 + 6 + 40 + 18 + 78;
-  let y = Math.max(54, (H - 30 - total) / 2);
-  drawLogo(W / 2, y + 36, 72); y += 72 + 18;
-  const ty = y + T / 2; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `900 ${T}px ${FONT}`; ctx.lineJoin = 'round';
-  const title = '字消云散';
-  ctx.lineWidth = T * 0.2; ctx.strokeStyle = C.accent2; ctx.fillStyle = C.accent2; ctx.strokeText(title, W / 2 + 3, ty + 4); ctx.fillText(title, W / 2 + 3, ty + 4);
-  ctx.strokeStyle = C.card; ctx.strokeText(title, W / 2, ty);
-  ctx.fillStyle = C.text; ctx.fillText(title, W / 2, ty);
-  y += T + 16;
-  // 标题下：四个小字块依次跳动
-  const ds = 20, dg = 6, dx0 = W / 2 - (ds * 4 + dg * 3) / 2;
-  [...'连字成词'].forEach((ch, i) => { const j = Math.max(0, Math.sin(now * 4 - i * 0.7)) * 5; const sp = tileSprite(ch, (i * 2 + 1) % 8, ds); ctx.drawImage(sp.c, dx0 + i * (ds + dg), y - 2 - j, sp.w, sp.h); });
-  y += 22;
-  ctx.fillStyle = C.sub; ctx.font = `15px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('汉字消消乐 · 从上往下取字，连成就消', W / 2, y + 8); y += 30;
-  // 玩法标签
-  const tags = ['成语', '诗句', '词语', '叠字块']; ctx.font = `600 12px ${FONT}`;
-  const tw = tags.map(t => ctx.measureText(t).width + 20), tt = tw.reduce((a, b) => a + b, 0) + 8 * 3; let tx = W / 2 - tt / 2;
-  tags.forEach((t, i) => { ctx.fillStyle = C.seg; rr(tx, y, tw[i], 24, 12); ctx.fill(); ctx.fillStyle = C.sub; ctx.textAlign = 'center'; ctx.fillText(t, tx + tw[i] / 2, y + 13); tx += tw[i] + 8; });
-  y += 34;
-  const sx = (W - segW) / 2, sh = 44, iw = (segW - 8) / 3;
-  ctx.fillStyle = C.seg; rr(sx, y, segW, sh, sh / 2); ctx.fill();
-  const kx = sx + 4 + segAnim * iw; ctx.fillStyle = C.shadow; rr(kx, y + 6, iw, sh - 8, (sh - 8) / 2); ctx.fill();
-  ctx.fillStyle = C.segOn; rr(kx, y + 4, iw, sh - 8, (sh - 8) / 2); ctx.fill();
-  DIFFS.forEach((D, i) => {
-    buttons.push({ x: sx + 4 + i * iw, y, w: iw, h: sh, key: 'd' + i, cb: () => setDiff(i) });
-    ctx.fillStyle = i === diff ? C.text : C.sub; ctx.font = `${i === diff ? 800 : 500} 15px ${FONT}`; ctx.textAlign = 'center';
-    ctx.fillText(D.name, sx + 4 + (i + 0.5) * iw, y + sh / 2 + 1);
-  });
-  y += sh + 10;
-  ctx.fillStyle = C.sub; ctx.font = `12px ${FONT}`; ctx.fillText(`${['下层字全可见', '深处的字看不见', '只看得到下一层'][diff]} · 点错扣 ${DIFFS[diff].pen} 秒 · 已到第 ${maxLevel} 关`, W / 2, y + 7); y += 16 + 28;
-  ctx.save(); const br = 1 + Math.sin(now * 3) * 0.012; ctx.translate(W / 2, y + 30); ctx.scale(br, br); ctx.translate(-W / 2, -y - 30);
-  button(W / 2 - bw2 / 2, y, bw2, 60, maxLevel > 1 ? `继续 · 第 ${maxLevel} 关` : '开始游戏', () => { score = 0; startLevel(maxLevel); }, 'primary', 'play', 'start');
-  ctx.restore(); y += 66;
-  if (maxLevel > 1) button(W / 2 - 80, y, 160, 40, '从第 1 关开始', () => { score = 0; startLevel(1); }, 'ghost', 'restart', 'from1');
-  y += 40 + 18;
-  const cw = Math.min(330, W - 40), cx0 = (W - cw) / 2; ctx.globalAlpha = 0.9; card(cx0, y, cw, 78, 18); ctx.globalAlpha = 1;
-  ctx.fillStyle = C.sub; ctx.font = `13px ${FONT}`; ctx.textAlign = 'center';
-  ctx.fillText('只能点每列最上面的字，按顺序连成成语 / 诗句', W / 2, y + 20);
-  ctx.fillText('上面的消掉，下面的才露出来 · 点错扣时间', W / 2, y + 40);
-  ctx.font = `700 13px ${FONT}`; const bt = `最高分 ${best}`, btw = ctx.measureText(bt).width;
-  drawIcon('trophy', W / 2 - btw / 2 - 10, y + 60, 14, C.gold); ctx.fillStyle = C.text; ctx.fillText(bt, W / 2 + 8, y + 61);
-  ctx.fillStyle = C.faint; ctx.font = `11px ${FONT}`; ctx.fillText('受同类汉字消除玩法启发的非官方作品，与任何商业游戏无关', W / 2, H - 14);
-  button(W - 58, 12, 44, 44, '', () => setTheme(theme === 'dark' ? 'light' : 'dark'), 'round', theme === 'dark' ? 'sun' : 'moon', 'theme');
-}
-
-function panelGeom() { const pw = Math.min(330, W - 40), ph = 318; return { pw, ph, px: (W - pw) / 2, py: (H - ph) / 2 + 16 }; }
-function drawPanel(kind, title, sub, lines, btns) {
-  const age = now - panelAt, e = easeOutBack(clamp(age / 0.38, 0, 1));
-  ctx.fillStyle = C.dim; ctx.globalAlpha = clamp(age / 0.25, 0, 1); ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1;
-  const { pw, ph, px, py } = panelGeom();
-  ctx.save(); ctx.globalAlpha = clamp(age / 0.18, 0, 1);
-  ctx.translate(W / 2, py + ph / 2); ctx.scale(0.86 + 0.14 * e, 0.86 + 0.14 * e); ctx.translate(-W / 2, -py - ph / 2);
-  ctx.fillStyle = C.shadow; rr(px, py + 8, pw, ph, 26); ctx.fill(); ctx.fillStyle = C.panel; rr(px, py, pw, ph, 26); ctx.fill();
-  const g = ctx.createLinearGradient(W / 2 - 34, py - 34, W / 2 + 34, py + 34), cg = kind === 'win' ? ['#ffd166', '#f4a261'] : ['#ff8a8a', '#e63946'];
-  g.addColorStop(0, cg[0]); g.addColorStop(1, cg[1]);
-  ctx.fillStyle = C.panel; ctx.beginPath(); ctx.arc(W / 2, py, 40, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(W / 2, py, 33, 0, Math.PI * 2); ctx.fill();
-  drawIcon(kind === 'win' ? 'trophy' : 'clock', W / 2, py + 1, 34, '#fff');
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillStyle = C.text; ctx.font = `900 28px ${FONT}`; ctx.fillText(title, W / 2, py + 66);
-  sub(py);
-  ctx.fillStyle = C.sub; ctx.font = `14px ${FONT}`;
-  lines.forEach((l, i) => ctx.fillText(l, W / 2, py + 176 + i * 24, pw - 24));
-  ctx.restore();
-  const bw2 = (pw - 56) / 2;
-  btns.forEach((b, i) => button(px + 20 + i * (bw2 + 16), py + ph - 74, bw2, 52, b[0], b[1], i === btns.length - 1 ? 'primary' : 'card', b[2]));
-}
-const STAR_X = [-58, 0, 58], STAR_D = [0.3, 0.48, 0.66];
-let bgGrad = null;
-function render() {
-  buttons = [];
-  const k = W + ',' + H + ',' + theme;
-  if (k !== bgKey) { bgKey = k; bgGrad = ctx.createLinearGradient(0, 0, 0, H); bgGrad.addColorStop(0, C.bg); bgGrad.addColorStop(1, C.bg2); }
-  ctx.fillStyle = bgGrad; ctx.fillRect(0, 0, W, H);
-  if (state === 'menu') drawMenu();
-  else {
-    drawPlay();
-    if (state === 'win') {
-      drawPanel('win', '过关！', (py) => { const age = now - panelAt;
-          for (let i = 0; i < 3; i++) { const p = clamp((age - STAR_D[i]) / 0.32, 0, 1); drawStar(W / 2 + STAR_X[i], py + 122 - (i === 1 ? 6 : 0), i === 1 ? 26 : 21, i < lastResult.stars, p > 0 ? easeOutBack(p) : 0); } },
-        [`本关得分 ${levelScore}（时间奖励 +${lastResult.bonus}）`, `用时 ${lastResult.time.toFixed(1)} 秒 · 失误 ${lastResult.mistakes} 次 · 总分 ${score}`],
-        [['重玩', () => { score = Math.max(0, score - levelScore); startLevel(level); }, 'restart'], ['下一关', () => startLevel(level + 1), 'next']]);
-    } else if (state === 'lose') {
-      drawPanel('lose', '挑战失败', (py) => {
-          ctx.font = `700 15px ${FONT}`; const tw = ctx.measureText(loseReason).width + 32;
-          ctx.fillStyle = C.redSoft; rr(W / 2 - tw / 2, py + 102, tw, 32, 16); ctx.fill();
-          ctx.fillStyle = C.red; ctx.fillText(loseReason, W / 2, py + 119); },
-        ['下次会多给你一点时间～', `总分 ${score} · 最高分 ${best}`],
-        [['主页', () => { state = 'menu'; }, 'home'], ['再试一次', () => { score = Math.max(0, score - levelScore); startLevel(level); }, 'restart']]);
+// ---------- 更新 ----------
+const easeO = k => 1 - Math.pow(1 - k, 3);
+function targetRect(t) { if (t.st === 's') return trayCell(tray.indexOf(t.id)); if (t.st === 'h') return holdCell(hold.indexOf(t.id)); return null; }
+function update(dt) {
+  now += dt;
+  if (toast) { toast.life -= dt; if (toast.life <= 0) { toast = null; dirty = true; } }
+  for (const p of particles) { p.age += dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += p.g * dt; if (p.vr) p.rot += p.vr * dt; }
+  if (particles.length) particles = particles.filter(p => p.age < p.life);
+  for (const f of floaters) f.age += dt; if (floaters.length) floaters = floaters.filter(f => f.age < f.life);
+  for (const fx of clearFx) {
+    const was = fx.age; fx.age += dt;
+    if (was < 0.22 && fx.age >= 0.22) {
+      const a = fx.to[0], b = fx.to[1], cx = (a.x + a.w / 2 + b.x + b.w / 2) / 2, cy = (a.y + a.h / 2 + b.y + b.h / 2) / 2;
+      inkBurst(cx, cy, 16, [C.ink, C.red, C.gold]);
+      floaters.push({ text: fx.idiom, x: W / 2, y: G.trayY - 18, age: 0, life: 1.35, fs: Math.round(clamp(W * 0.085, 26, 40)), seal: fx.joker ? '万' : null });
+      vib(12);
     }
   }
-  drawFX();
+  if (clearFx.length) clearFx = clearFx.filter(fx => fx.age < 0.62);
+  const k = 1 - Math.exp(-dt * 16);
+  for (const t of T) { if (t.st !== 's' && t.st !== 'h') continue; const tg = targetRect(t);
+    if (!t.disp) { t.disp = Object.assign({}, tg); continue; }
+    const d = t.disp; d.x += (tg.x - d.x) * k; d.y += (tg.y - d.y) * k; d.w += (tg.w - d.w) * k; d.h += (tg.h - d.h) * k;
+    if (Math.abs(tg.x - d.x) + Math.abs(tg.y - d.y) + Math.abs(tg.w - d.w) + Math.abs(tg.h - d.h) < 0.6) { t.disp = Object.assign({}, tg); t.moving = false; } else t.moving = true; }
+  for (const t of T) if (t.wob > 0) t.wob = Math.max(0, t.wob - dt);
+  if (shake > 0) shake = Math.max(0, shake - dt);
+  if (hintIds.length && now > hintUntil) { hintIds = []; dirty = true; }
+  if (pending && now >= pending.at) { const p = pending; pending = null; toast = null; if (p.kind === 'win') win(); else lose(); }
+  if (state === 'win' && lastResult) for (let i = 0; i < lastResult.stars; i++) if (!sealPopped[i] && now > panelAt + 0.45 + i * 0.28) {
+    sealPopped[i] = true; beep(PENTA[2 + i] * 2, 0.12, 'triangle', 0.18); vib(10); }
+}
+
+// ---------- 场景绘制 ----------
+function tileImg(t, kind, v, cw, ch) { return tileSprite(t.text, v, cw, ch, kind); }
+function drawCellTile(t, r, canon, kind, alpha) {
+  const sp = tileImg(t, kind || 0, false, canon.w, canon.h), sx = r.w / Math.round(canon.w), sy = r.h / Math.round(canon.h);
+  if (alpha != null) ctx.globalAlpha = alpha;
+  ctx.drawImage(sp.c, r.x, r.y, sp.w * sx, sp.h * sy); ctx.globalAlpha = 1;
+}
+function hud() {
+  button(12, 10, 42, 42, '', () => { state = 'menu'; dirty = true; }, 'round', 'home', 'home');
+  button(W - 54, 10, 42, 42, '', () => { if (state === 'play') { state = 'pause'; panelAt = now; toast = null; } }, 'round', 'gear', 'pause');
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = C.ink; ctx.font = `700 26px ${KFONT}`;
+  ctx.fillText(`第 ${level} 关`, W / 2, 24);
+  const boss = level >= 5 && level % 5 === 0;
+  ctx.font = `13px ${KFONT}`; ctx.fillStyle = C.sub; ctx.fillText(`剩余 ${leftCount()} 块 · 已成 ${cleared.length} 语${boss ? ' · 殿试关' : ''}`, W / 2, 47);
+  drawBang(12, 56, W - 24, 32);
+}
+function drawPiles() {
+  for (let p = 0; p < 2; p++) {
+    const list = T.filter(t => t.pile === p && t.st === 'b').sort((a, b) => a.pidx - b.pidx); if (!list.length) continue;
+    for (const t of list.slice(-9)) drawTileAt(t, tileRect(t), isFree(t) ? 0 : 1);
+    const g = pileGeom(p), bx = p === 0 ? g.x + g.w - 6 : g.x + 6, bs = 18;   // 内侧上角朱红小印标剩余张数
+    ctx.fillStyle = C.red; rr(bx - bs / 2, g.y - bs / 2 + 2, bs, bs, 3); ctx.fill();
+    ctx.fillStyle = '#fff6e6'; ctx.font = `700 12px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(list.length), bx, g.y + 2.5);
+  }
+  if (T.some(t => t.pile != null && t.st === 'b')) { ctx.fillStyle = C.faint; ctx.font = `12px ${KFONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('侧堆 · 只取最上一张', W / 2, G.pileY + G.ph / 2); }
+}
+function drawHoldTray() {
+  // 暂存区：深色一带
+  const hx = G.holdX, hy = G.holdY, hw = G.holdW, hh = G.holdH;
+  ctx.fillStyle = C.hold; rr(hx, hy, hw, hh, 10); ctx.fill(); ctx.strokeStyle = C.holdEdge; ctx.lineWidth = 1; rr(hx + 2.5, hy + 2.5, hw - 5, hh - 5, 8); ctx.stroke();
+  if (!hold.length) { ctx.fillStyle = C.holdText; ctx.font = `15px ${KFONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(lastIdiom ? `刚消：${lastIdiom}` : '暂存区 · 「移出」的牌放这里', W / 2, hy + hh / 2 + 1); }
+  // 字槽：木色托盘，金边，两端祥云
+  const sx = G.trayX + (shake > 0 ? Math.sin(now * 60) * 6 * (shake / 0.35) : 0), sy = G.trayY;
+  ctx.fillStyle = 'rgba(0,0,0,.18)'; rr(sx + 2, sy + 4, G.trayW, G.trayH, 12); ctx.fill();
+  const g = ctx.createLinearGradient(0, sy, 0, sy + G.trayH); g.addColorStop(0, C.tray); g.addColorStop(1, C.tray2);
+  ctx.fillStyle = g; rr(sx, sy, G.trayW, G.trayH, 12); ctx.fill();
+  ctx.strokeStyle = C.trayEdge; ctx.lineWidth = 2; rr(sx + 1, sy + 1, G.trayW - 2, G.trayH - 2, 11); ctx.stroke();
+  for (let i = 0; i < SLOT; i++) { const c = trayCell(i); ctx.fillStyle = C.cell; rr(c.x + (sx - G.trayX), c.y, c.w, c.h, 6); ctx.fill(); }
+  return sx - G.trayX;
+}
+function drawPlay() {
+  hud();
+  { const dk = theme === 'dark', x = BX - 8, y = BY - 8, w = G.bw + 16, h = G.bh + 16;   // 牌区底：薄雾纸面 + 回纹
+    ctx.fillStyle = dk ? 'rgba(12,18,28,.35)' : 'rgba(255,250,236,.38)'; rr(x, y, w, h, 10); ctx.fill();
+    fretFrame(x, y, w, h, dk ? 'rgba(212,174,92,.22)' : 'rgba(120,85,40,.22)', 9); }
+  if (boardBuilt !== boardRev || !boardLayer) buildBoardLayer();
+  ctx.drawImage(boardLayer.c, BX - boardLayer.m, BY - boardLayer.m, boardLayer.w, boardLayer.h);
+  for (const t of T) if (t.wob > 0 && t.st === 'b') { const r = tileRect(t); ctx.strokeStyle = C.red; ctx.lineWidth = 2.5; ctx.globalAlpha = t.wob / 0.3; rr(r.x, r.y, r.w, r.h, 5); ctx.stroke(); ctx.globalAlpha = 1; }
+  drawPiles();
+  const off = drawHoldTray();
+  const tc = trayCell(0), hc = holdCell(0), fxIds = new Set(); clearFx.forEach(f => f.ids.forEach(i => fxIds.add(i)));
+  for (const id of hold) { const t = T[id]; if (t.disp) drawCellTile(t, t.disp, hc); }
+  for (const id of tray) { const t = T[id]; if (t.disp) drawCellTile(t, { x: t.disp.x + (t.moving ? 0 : off), y: t.disp.y, w: t.disp.w, h: t.disp.h }, tc); }
+  for (const fx of clearFx) {
+    const a = fx.age, ids = fx.ids, mid = { x: (fx.to[0].x + fx.to[1].x) / 2, y: (fx.to[0].y + fx.to[1].y) / 2 };
+    ids.forEach((id, j) => {
+      const fr = fx.from[j], to = fx.to[j]; let r, al = 1;
+      if (a < 0.22) { const e = easeO(a / 0.22); r = { x: lerp(fr.x, to.x, e), y: lerp(fr.y, to.y, e), w: lerp(fr.w, to.w, e), h: lerp(fr.h, to.h, e) }; }
+      else { const e = easeO(clamp((a - 0.22) / 0.4, 0, 1)), front = id === fx.first, tx = mid.x + (front ? -to.w / 2 : to.w / 2);
+        r = { x: lerp(to.x, tx, Math.min(1, e * 2)), y: to.y - 10 * e, w: to.w, h: to.h }; al = 1 - e; }
+      drawCellTile(T[id], r, tc, 0, al);
+    });
+  }
+  // 提示：金色描边呼吸
+  if (hintIds.length) { const pulse = 0.55 + 0.45 * Math.sin(now * 8);
+    for (const id of hintIds) { const t = T[id], r = t.st === 's' || t.st === 'h' ? (t.disp || targetRect(t)) : tileRect(t);
+      ctx.strokeStyle = C.hint; ctx.lineWidth = 3; ctx.globalAlpha = pulse; rr(r.x - 3, r.y - 3, r.w + 6, r.h + 6, 7); ctx.stroke(); ctx.globalAlpha = 1; } }
+  drawProps();
+}
+function drawProps() {
+  const n = ITEM_KEYS.length, cw = W / n, r = Math.min(24, cw * 0.3), cy = G.propsY + r + 2;
+  const ic = { shuffle: 'shuffle', out: 'out', hint: 'bulb', joker: 'joker' };
+  ITEM_KEYS.forEach((key, i) => {
+    const cx = cw * (i + 0.5), cnt = items[key] || 0, bk = 'item_' + key;
+    buttons.push({ x: cx - cw / 2 + 4, y: G.propsY - 2, w: cw - 8, h: G.propsH, cb: () => useItem(key), key: bk });
+    const pr = pressK === bk ? clamp((now - pressAt) / 0.2, 0, 1) : 1, sc = 1 - 0.1 * Math.sin(Math.PI * pr);
+    ctx.save(); ctx.translate(cx, cy); ctx.scale(sc, sc); if (!cnt) ctx.globalAlpha = 0.38;
+    ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.beginPath(); ctx.arc(1, 2, r, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = C.btn; ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = C.gold; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(0, 0, r - 3.5, 0, Math.PI * 2); ctx.stroke();
+    drawIcon(ic[key], 0, 0, r * 0.95, C.btnInk);
+    ctx.fillStyle = C.ink; ctx.font = `700 13px ${KFONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillText(ITEM_NAME[key], 0, r + 4);
+    const bs = 17; ctx.fillStyle = cnt ? C.red : C.faint; rr(r * 0.62 - bs / 2, -r - 2, bs, bs, 3); ctx.fill();
+    ctx.fillStyle = '#fff6e6'; ctx.font = `700 12px ${FONT}`; ctx.textBaseline = 'middle'; ctx.fillText(String(cnt), r * 0.62, -r - 2 + bs / 2 + 0.5);
+    ctx.restore();
+  });
+}
+function drawToast() {
+  if (!toast) return; const a = clamp(toast.life / 0.25, 0, 1);
+  ctx.font = `15px ${KFONT}`; const tw = Math.min(W - 40, ctx.measureText(toast.text).width + 36), y = state === 'play' ? G.holdY + G.holdH / 2 : H * 0.5;
+  ctx.globalAlpha = a; ctx.fillStyle = C.toast; rr(W / 2 - tw / 2, y - 17, tw, 34, 17); ctx.fill();
+  ctx.fillStyle = C.toastText; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(toast.text, W / 2, y + 1, tw - 24); ctx.globalAlpha = 1;
+}
+// 卷轴面板：上下轴杆 + 宣纸 + 回纹框，入场时从中间展开
+function scroll(w, h) {
+  const x = (W - w) / 2, y = (H - h) / 2, p = easeO(clamp((now - panelAt) / 0.38, 0, 1)), ch = Math.max(14, h * p), cy = y + h / 2;
+  ctx.fillStyle = C.dim; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(x + 4, cy - ch / 2 + 6, w, ch);
+  const g = ctx.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, C.panel); g.addColorStop(1, C.panel2);
+  ctx.fillStyle = g; ctx.fillRect(x, cy - ch / 2, w, ch);
+  ctx.save(); ctx.beginPath(); ctx.rect(x, cy - ch / 2, w, ch); ctx.clip();
+  fretFrame(x + 8, y + 10, w - 16, h - 20, theme === 'dark' ? 'rgba(212,174,92,.55)' : 'rgba(160,40,30,.5)', 11);
+  cloud(x + 30, y + 30, 14, theme === 'dark' ? 'rgba(212,174,92,.35)' : 'rgba(160,40,30,.28)'); cloud(x + w - 34, y + h - 32, 14, theme === 'dark' ? 'rgba(212,174,92,.35)' : 'rgba(160,40,30,.28)');
+  for (const yy of [cy - ch / 2, cy + ch / 2]) { ctx.fillStyle = C.rod; rr(x - 12, yy - 7, w + 24, 14, 7); ctx.fill(); }
+  ctx.restore();
+  for (const yy of [cy - ch / 2, cy + ch / 2]) { ctx.fillStyle = C.rod; rr(x - 12, yy - 7, w + 24, 14, 7); ctx.fill();
+    ctx.fillStyle = C.rodCap; for (const ex of [x - 18, x + w + 6]) { rr(ex, yy - 9, 12, 18, 4); ctx.fill(); } }
+  return { x, y, w, h, open: p >= 1, p };
+}
+function panelTitle(P, text, y, fs) { ctx.fillStyle = C.ink; ctx.font = `700 ${fs || 30}px ${KFONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(text, P.x + P.w / 2, y); }
+function drawWin() {
+  const R = lastResult || { stars: 1, idioms: 0 }, w = Math.min(W - 48, 340), h = R.promoted ? 380 : 350, P = scroll(w, h); if (P.p < 0.6) return;
+  ctx.save(); ctx.globalAlpha = clamp((P.p - 0.6) / 0.4, 0, 1);
+  panelTitle(P, '过 关', P.y + 50, 32);
+  ctx.font = `14px ${KFONT}`; ctx.fillStyle = C.sub; ctx.fillText(`第 ${level} 关 · 连成 ${R.idioms} 条成语`, P.x + w / 2, P.y + 84);
+  const ss = 46; for (let i = 0; i < 3; i++) { const on = i < R.stars, t = now - (panelAt + 0.45 + i * 0.28), sc = on && sealPopped[i] ? (t < 0.18 ? 1.6 - 0.6 * (t / 0.18) : 1) : 0;
+    sealStar(P.x + w / 2 + (i - 1) * (ss + 16), P.y + 132 - (i === 1 ? 6 : 0), ss, on, sc, (i - 1) * 0.08); }
+  ctx.font = `13px ${KFONT}`; ctx.fillStyle = C.sub; ctx.fillText(R.stars === 3 ? '未用道具 · 三印' : `用了 ${itemsUsed} 次道具`, P.x + w / 2, P.y + 176);
+  let by = P.y + 196;
+  if (R.promoted) { ctx.fillStyle = C.bang; rr(P.x + 24, by, w - 48, 40, 4); ctx.fill(); ctx.strokeStyle = C.red; ctx.lineWidth = 1.5; rr(P.x + 27, by + 3, w - 54, 34, 3); ctx.stroke();
+    ctx.fillStyle = C.red; ctx.font = `700 19px ${KFONT}`; ctx.fillText(`喜报 · 晋升「${R.promoted}」`, P.x + w / 2, by + 21); by += 52; }
+  else { drawBang(P.x + 22, by, w - 44, 34); by += 46; }
+  ctx.restore();
+  const bw = (w - 64) / 2;
+  button(P.x + 24, P.y + h - 72, bw, 46, '重玩', () => startLevel(level), 'paper', 'restart', 'replay');
+  button(P.x + 40 + bw, P.y + h - 72, bw, 46, '下一关', () => startLevel(level + 1), 'seal', 'next', 'next');
+}
+function drawLose() {
+  const w = Math.min(W - 48, 330), h = 280, P = scroll(w, h); if (P.p < 0.6) return;
+  panelTitle(P, '字槽已满', P.y + 52, 28);
+  ctx.font = `14px ${KFONT}`; ctx.fillStyle = C.sub; ctx.fillText(loseReason || '没有能配对的半词了', P.x + w / 2, P.y + 90);
+  const canOut = items.out > 0 && hold.length < HOLD, canJ = items.joker > 0;
+  ctx.fillText(canOut || canJ ? '还有道具，可以接着来' : '道具用完了，重来一次吧', P.x + w / 2, P.y + 114);
+  drawSeal(P.x + w - 46, P.y + 52, 34, '惜败', 0.12, 0.85);
+  const bw = (w - 64) / 2, y1 = P.y + h - 120, y2 = P.y + h - 66;
+  if (canOut || canJ) {
+    button(P.x + 24, y1, w - 48, 46, canOut ? '移出复活' : '万能复活', revive, 'seal', canOut ? 'out' : 'joker', 'revive');
+    button(P.x + 24, y2, bw, 42, '主页', () => { state = 'menu'; }, 'paper', 'home', 'lhome');
+    button(P.x + 40 + bw, y2, bw, 42, '重来', () => startLevel(level), 'paper', 'restart', 'retry');
+  } else {
+    button(P.x + 24, y2 - 20, bw, 46, '主页', () => { state = 'menu'; }, 'paper', 'home', 'lhome');
+    button(P.x + 40 + bw, y2 - 20, bw, 46, '重来', () => startLevel(level), 'seal', 'restart', 'retry');
+  }
+}
+function drawPause() {
+  const w = Math.min(W - 60, 300), h = 360, P = scroll(w, h); if (P.p < 0.6) return;
+  panelTitle(P, '暂 歇', P.y + 48, 28);
+  const bx = P.x + 30, bw = w - 60; let y = P.y + 82;
+  button(bx, y, bw, 44, '继续', () => { state = 'play'; }, 'seal', 'play', 'resume'); y += 54;
+  button(bx, y, bw, 42, theme === 'dark' ? '换作白昼' : '换作夜墨', () => setTheme(theme === 'dark' ? 'light' : 'dark'), 'paper', theme === 'dark' ? 'sun' : 'moon', 'ptheme'); y += 52;
+  button(bx, y, bw, 42, soundOn ? '音效：开' : '音效：关', () => { soundOn = !soundOn; persist(); }, 'paper', soundOn ? 'sound' : 'mute', 'psound'); y += 52;
+  button(bx, y, bw, 42, '重开本关', () => startLevel(level), 'paper', 'restart', 'prestart'); y += 52;
+  button(bx, y, bw, 42, '回主页', () => { state = 'menu'; }, 'paper', 'home', 'phome');
+}
+function drawMenu() {
+  const cx = W / 2, top = Math.max(20, H * 0.07);
+  button(W - 54, 12, 42, 42, '', () => setTheme(theme === 'dark' ? 'light' : 'dark'), 'round', theme === 'dark' ? 'sun' : 'moon', 'theme');
+  button(W - 104, 12, 42, 42, '', () => { soundOn = !soundOn; persist(); }, 'round', soundOn ? 'sound' : 'mute', 'sound');
+  // 标题：大楷 + 朱印
+  const fs = Math.round(clamp(W * 0.15, 44, 70)); ctx.font = `700 ${fs}px ${KFONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const ty = top + 50 + fs * 0.4; ctx.fillStyle = C.ink; ctx.fillText('字消云散', cx - fs * 0.25, ty);
+  const tw = ctx.measureText('字消云散').width; drawSeal(cx - fs * 0.25 + tw / 2 + fs * 0.42, ty + fs * 0.12, fs * 0.6, '成语', -0.06);
+  cloud(cx - tw / 2 - 6, ty - fs * 0.62, fs * 0.32, theme === 'dark' ? 'rgba(212,174,92,.5)' : 'rgba(160,40,30,.4)');
+  ctx.font = `16px ${KFONT}`; ctx.fillStyle = C.sub; ctx.fillText('水墨成语 · 半词成双 · 层层揭开', cx, ty + fs * 0.75);
+  // 功名阶梯
+  const c = maxLevel - 1, r = rankOf(c), n = RANKS.length, cols = W < 400 ? 4 : 8, ss = Math.min(40, (W - 48) / cols - 10);
+  let ly = ty + fs * 0.75 + 34;
+  for (let i = 0; i < n; i++) { const col = i % cols, row = Math.floor(i / cols), gx = cx + (col - (cols - 1) / 2) * (ss + 12), gy = ly + row * (ss + 26) + ss / 2;
+    if (i <= r) drawSeal(gx, gy, i === r ? ss * 1.12 : ss, RANKS[i], (i % 2 ? 0.05 : -0.05), i === r ? 1 : 0.8);
+    else { ctx.save(); ctx.setLineDash([3, 3]); ctx.strokeStyle = C.faint; ctx.lineWidth = 1.2; rr(gx - ss / 2, gy - ss / 2, ss, ss, 4); ctx.stroke(); ctx.restore();
+      ctx.fillStyle = C.faint; ctx.font = `700 ${Math.round(ss * 0.34)}px ${KFONT}`; ctx.textAlign = 'center'; ctx.fillText(RANKS[i][0], gx, gy - ss * 0.18); ctx.fillText(RANKS[i][1], gx, gy + ss * 0.2); }
+    ctx.fillStyle = C.sub; ctx.font = `11px ${FONT}`; ctx.fillText(`${RANK_AT[i] + 1}关`, gx, gy + ss / 2 + 10); }
+  ly += Math.ceil(n / cols) * (ss + 26) + 4;
+  drawBang(24, ly, W - 48, 38, true); ly += 54;
+  const bw = Math.min(W - 64, 300);
+  button(cx - bw / 2, ly, bw, 58, `开始 · 第 ${maxLevel} 关`, () => startLevel(maxLevel), 'seal', 'play', 'start'); ly += 66;
+  if (maxLevel > 1) { button(cx - 90, ly, 180, 30, '从第一关开始', () => startLevel(1), 'ghost', '', 'from1'); ly += 36; } else ly += 8;
+  // 规则卡
+  const lines = ['点没被压住的白牌，它会进到下方字槽', '一枚成语拆成前后两块，凑齐即消', '灰牌被上层压着，要先消掉上面的', '字槽只有 4 格，满了就输；道具可救急'];
+  const rh = 22 * lines.length + 22, rw = Math.min(W - 40, 340), rx = cx - rw / 2;
+  if (ly + rh < H - 40) {
+    ctx.fillStyle = theme === 'dark' ? 'rgba(12,18,28,.55)' : 'rgba(255,250,236,.65)'; rr(rx, ly, rw, rh, 8); ctx.fill();
+    fretFrame(rx, ly, rw, rh, theme === 'dark' ? 'rgba(212,174,92,.4)' : 'rgba(120,85,40,.35)', 8);
+    ctx.textAlign = 'left'; ctx.font = `14px ${KFONT}`; lines.forEach((s, i) => { ctx.fillStyle = C.red; ctx.fillText('◆', rx + 18, ly + 22 + i * 22); ctx.fillStyle = C.ink2; ctx.fillText(s, rx + 36, ly + 22 + i * 22, rw - 50); });
+  }
+  ctx.font = `11px ${FONT}`; const ft = '玩法参考《文字趣闯关》· 个人仿作 · 无体力无内购 · 可离线', fw = Math.min(W - 16, ctx.measureText(ft).width + 24);
+  ctx.fillStyle = theme === 'dark' ? 'rgba(10,14,22,.6)' : 'rgba(246,239,222,.78)'; rr(cx - fw / 2, H - 27, fw, 22, 11); ctx.fill();
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = C.sub;
+  ctx.fillText('玩法参考《文字趣闯关》· 个人仿作 · 无体力无内购 · 可离线', cx, H - 16, W - 24);
+}
+function render() {
+  buttons = [];
+  if (!bgLayer) buildBg();
+  ctx.drawImage(bgLayer.c, 0, 0, W, H);
+  if (state === 'menu') drawMenu();
+  else { drawPlay(); if (state === 'win') drawWin(); else if (state === 'lose') drawLose(); else if (state === 'pause') drawPause(); }
+  drawFX(); if (state === 'play') drawToast();
 }
 
 // ---------- 输入 ----------
-function tileAt(px, py) {
-  // 同一列里行号最小（最上面）的那块盖在别人上面，优先命中
+function pick(px, py) {
+  const inR = r => px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h;
+  for (let i = 0; i < hold.length; i++) if (inR(holdCell(i))) return T[hold[i]];
   let best = null;
-  for (const t of tiles) {
-    if (!t.alive || t.inSlot) continue;
-    const [x, y] = tileXY(t);
-    if (Math.abs(px - x) <= cs / 2 && py >= y - cs / 2 && py <= y + cs / 2) { if (!best || t.row < best.row) best = t; }
-  }
-  return best;
+  for (const t of T) { if (t.st !== 'b') continue; const r = tileRect(t);
+    if (inR(r)) { const z = t.pile != null ? 1000 + t.pidx : t.layer * 100; if (!best || z > best.z) best = { t, z }; } }
+  return best ? best.t : null;
 }
 cv.addEventListener('pointerdown', e => {
-  e.preventDefault(); dirty = true;
-  unlockAudio();
-  const rc0 = cv.getBoundingClientRect(); const x = e.clientX - rc0.left, y = e.clientY - rc0.top;
-  for (const b of buttons) if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) { if (btnBusy) return; sfx.click(); pressK = b.key; pressAt = now; btnBusy = true;
-    setTimeout(() => { btnBusy = false; try { b.cb(); } finally { dirty = true; } }, 90); return; }
-  if (state === 'play') tapTile(tileAt(x, y));
+  e.preventDefault(); dirty = true; unlockAudio();
+  const rc0 = cv.getBoundingClientRect(), x = e.clientX - rc0.left, y = e.clientY - rc0.top;
+  for (let i = buttons.length - 1; i >= 0; i--) { const b = buttons[i];
+    if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) { if (btnBusy) return; sfx.click(); pressK = b.key; pressAt = now; btnBusy = true;
+      setTimeout(() => { btnBusy = false; try { b.cb(); } finally { dirty = true; } }, 90); return; } }
+  if (state === 'play') { const t = pick(x, y); if (t) take(t); }
 });
 cv.addEventListener('pointermove', e => {
   if ((e.pointerType || 'mouse') !== 'mouse') return;
   const mx = e.clientX - cvRect.left, my = e.clientY - cvRect.top;
-  let over = false; for (const b of buttons) if (mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) over = true;
-  if (!over && state === 'play' && tileAt(mx, my)) over = true;
+  let over = buttons.some(b => mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h);
+  if (!over && state === 'play') { const t = pick(mx, my); if (t && isFree(t)) over = true; }
   cv.style.cursor = over ? 'pointer' : 'default';
 });
 addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  if (k === 'escape') { if (state === 'play') { state = 'pause'; panelAt = now; toast = null; } else if (state === 'pause') state = 'play'; dirty = true; return; }
   if (state !== 'play') return;
-  if (e.key === 'h' || e.key === 'H') useHint();
-  else if (e.key === 'r' || e.key === 'R') startLevel(level);
-  else if (e.key === 's' || e.key === 'S') shuffleBoard();
-  else if (e.key === 'z' || e.key === 'Z' || e.key === 'Backspace') undo();
-  else if (e.key === 'Escape') undoAll();
+  if (k === 'h') useItem('hint'); else if (k === 's') useItem('shuffle'); else if (k === 'o') useItem('out'); else if (k === 'j') useItem('joker'); else if (k === 'r') startLevel(level);
   dirty = true;
 });
 addEventListener('resize', queueResize);
@@ -954,9 +913,7 @@ window.__swStatus = 'unsupported';
 if ('serviceWorker' in navigator) {
   window.__swStatus = 'pending';
   const hadController = !!navigator.serviceWorker.controller; let reloading = false;
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (!hadController || reloading) return; reloading = true; location.reload();
-  });
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (!hadController || reloading) return; reloading = true; location.reload(); });
   addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js', { scope: './' })
       .then(r => { window.__swStatus = 'registered'; try { r.update(); } catch (e) {} return navigator.serviceWorker.ready; })
@@ -968,15 +925,13 @@ if ('serviceWorker' in navigator) {
 // ---------- 主循环（空闲降帧） ----------
 let last = performance.now(), lastRender = 0, rafId = 0, running = false, lastFrameAt = 0;
 function animating() {
-  if (particles.length || floaters.length || toast || slotFx || shake > 0 || flash > 0) return true;
+  if (particles.length || floaters.length || clearFx.length || shake > 0 || pending) return true;
   if (pressK && now - pressAt < 0.22) return true;
-  if (segAnim !== diff) return true;
-  if (state !== 'play' && state !== 'menu' && now - panelAt < 1.3) return true;
+  if (toast && toast.life < 0.3) return true;
+  if (state !== 'play' && state !== 'menu' && now - panelAt < 1.4) return true;
   if (state !== 'play') return false;
-  if (combo >= 2 && now - comboAt < 0.5) return true;
   if (hintIds.length) return true;
-  if (flyers.length) return true;
-  for (const t of tiles) if (t.wrong > 0 || t.nudge > 0 || (t.alive && t.ry !== t.row)) return true;
+  for (const t of T) if (t.moving || t.wob > 0) return true;
   return false;
 }
 function frame() {
@@ -984,53 +939,53 @@ function frame() {
   const t = performance.now(); lastFrameAt = t;
   const dt = Math.min(0.05, Math.max(0, (t - last) / 1000)); last = t;
   update(dt);
-  const interval = animating() ? 0 : state === 'menu' ? 50 : state === 'play' ? (timeLeft / timeTotal <= 0.2 ? 50 : 100) : 250;
+  const interval = animating() ? 0 : state === 'play' ? 100 : 250;
   if (dirty || t - lastRender >= interval - 1) { render(); lastRender = t; dirty = false; }
   rafId = requestAnimationFrame(frame);
 }
 function startLoop() { if (running) return; running = true; last = performance.now(); dirty = true; rafId = requestAnimationFrame(frame); }
 function stopLoop() { running = false; cancelAnimationFrame(rafId); }
 function unlockAudio() {
-  try {
-    if (!actx) { const AC = window.AudioContext || window.webkitAudioContext; if (AC) actx = new AC(); }
-    if (actx && actx.state !== 'running') { const pr = actx.resume(); if (pr && pr.catch) pr.catch(() => {}); }
-  } catch (err) {}
+  try { if (!actx) { const AC = window.AudioContext || window.webkitAudioContext; if (AC) actx = new AC(); }
+    if (actx && actx.state !== 'running') { const pr = actx.resume(); if (pr && pr.catch) pr.catch(() => {}); } } catch (err) {}
 }
-document.addEventListener('visibilitychange', () => {
-  if (document.hidden) stopLoop();
-  else { resize(false); startLoop(); if (actx && actx.state !== 'running') unlockAudio(); }
-});
+document.addEventListener('visibilitychange', () => { if (document.hidden) stopLoop(); else { resize(false); startLoop(); if (actx && actx.state !== 'running') unlockAudio(); } });
 addEventListener('pageshow', () => { resize(false); stopLoop(); startLoop(); });
 addEventListener('focus', () => { if (!document.hidden) startLoop(); });
 setInterval(() => { if (!document.hidden && running && performance.now() - lastFrameAt > 1500) { stopLoop(); startLoop(); } }, 1000);
 applyThemeChrome(); resize(true); startLoop();
 
 // ---------- 调试 / 测试接口 ----------
+const scr = (x, y) => [x + cvRect.left, y + cvRect.top];
 window.__game = {
-  get state() { return state; }, get level() { return level; }, get left() { return aliveCount(); }, get score() { return score; },
-  get mistakes() { return mistakes; }, get mode() { return mode; }, get sel() { return sel.slice(); }, get groups() { return groups; },
-  get diff() { return diff; }, setDiff(d) { setDiff(d); }, get theme() { return theme; }, setTheme(t) { setTheme(t); }, get cs() { return cs; },
-  start(n) { score = 0; startLevel(n || 1); },
-  planIds() { return planIds(); },
-  topIds() { return stk.map(s => s[s.length - 1]).filter(id => id != null); },
-  coveredIds() { const a = []; stk.forEach(s => s.slice(0, -1).forEach(id => a.push(id))); return a; },
-  isTop(id) { return isTop(tiles[id]); },
-  // 一组按规则可点、但拼起来不是词的字（用来测扣时）
-  wrongIds() { for (let k = 0; k < 300; k++) { const h = heights(), ids = [];
-      for (let i = 0; i < L; i++) { const cs2 = []; h.forEach((v, c) => { if (v > 0) cs2.push(c); }); if (!cs2.length) break; const c = cs2[Math.floor(Math.random() * cs2.length)]; ids.push(stk[c][h[c] - 1]); h[c]--; }
-      if (ids.length === L && !lookup(mode, ids.map(id => tiles[id].ch))) return ids; } return []; },
-  tileCenter(id) { const t = tiles[id]; const [x, y] = tileXY(t); return [x + cvRect.left, y + cvRect.top]; },
-  buttonCenter(key) { const b = buttons.find(b => b.key === key); return b ? [b.x + b.w / 2 + cvRect.left, b.y + b.h / 2 + cvRect.top] : null; },
-  tap(id) { tapTile(tiles[id]); dirty = true; },
-  undo() { undo(); dirty = true; }, shuffle() { shuffleBoard(); },
-  settled() { return !flyers.length && !tiles.some(t => t.alive && t.ry !== t.row); },
-  dict() { const o = {}; for (const m in DICT) o[m] = DICT[m].list.length; return o; },
-  // 验证：题目来自词库、字数正确、且从开局状态用求解器能完整消光
-  validate(n, d) { const g = genLevel(n, d == null ? diff : d); const M = MODES[g.mode];
-    const okWords = g.answers.every(e => lookup(g.mode, e.chars) === e && e.chars.length === M.L);
-    const t0 = performance.now(), sol = solveStacks(g.mode, g.stacks, g.stacks.map(s => s.length), g.answers), ms = performance.now() - t0;
-    // 开局最上层能直接凑成词的组合不应太多，这里顺带统计
-    return { n, mode: g.mode, tiles: g.N, cols: g.cols, rows: g.rows, okWords, solved: !!sol && sol.reduce((s, p) => s + p.e.chars.length, 0) === g.N, ms, time: Math.round(g.time) }; }
+  get state() { return state; }, get level() { return level; }, get left() { return leftCount(); }, get theme() { return theme; }, get items() { return Object.assign({}, items); },
+  get maxLevel() { return maxLevel; }, get cleared() { return cleared.slice(); }, get N() { return T.length; },
+  start(n) { startLevel(n || 1); }, setTheme(t) { setTheme(t); },
+  tray() { return tray.slice(); }, hold() { return hold.slice(); },
+  avail() { return T.filter(isFree).map(t => t.id); }, covered() { return T.filter(t => t.st === 'b' && !isFree(t)).map(t => t.id); },
+  isFree(id) { return isFree(T[id]); }, tile(id) { const t = T[id]; return { id, text: t.text, idiom: t.idiom, part: t.part, mate: t.mate, st: t.st, layer: t.layer, pile: t.pile, v: t.v }; },
+  tileCenter(id) { const t = T[id], r = t.st === 'h' ? holdCell(hold.indexOf(id)) : tileRect(t); return scr(r.x + r.w / 2, r.y + r.h / 2); },
+  // 被压住的牌上能看到的一点（用于测“点了没反应”）
+  visiblePoint(id) { const t = T[id], r = tileRect(t); for (let a = 0.08; a < 1; a += 0.12) for (let b = 0.1; b < 1; b += 0.2) { const x = r.x + r.w * a, y = r.y + r.h * b, p = pick(x, y); if (p && p.id === id) return scr(x, y); } return null; },
+  pick(x, y) { const p = pick(x - cvRect.left, y - cvRect.top); return p ? p.id : null; },
+  tap(id) { take(T[id]); dirty = true; }, useItem(k) { return useItem(k); },
+  solution() { const r = solveState(T, stArr(), 200000); return r.path || null; },
+  buttonCenter(key) { const b = buttons.find(b => b.key === key); return b ? scr(b.x + b.w / 2, b.y + b.h / 2) : null; },
+  buttons() { return buttons.map(b => b.key); },
+  settled() { return !clearFx.length && !pending && !T.some(t => t.moving) && now >= lockUntil - 50; },
+  validate(n) { const t0 = performance.now(), g = genLevel(n), t1 = performance.now(); const st = g.tiles.map(() => 'b');
+    const r = solveState(g.tiles, st, 400000); const ms = performance.now() - t1;
+    const texts = new Set(), seen = new Map(); let unique = true;
+    for (const t of g.tiles) { const key = t.text + '|' + t.part; if (seen.has(key) && seen.get(key) !== t.k) unique = false; seen.set(key, t.k); }
+    const okIdioms = g.idioms.every(w => DICTSET.has(w));
+    return { n, N: g.tiles.length, layers: g.P.layers, pile: g.P.pile, solved: !!r.path && r.path.length === g.tiles.length, nodes: r.nodes, genMs: t1 - t0, ms, okIdioms, unique }; },
+  // 遮挡检查：底层牌与上层牌像素矩形有正面积重叠 ⇔ 记在 cov 里
+  geomCheck() { let bad = 0, pairs = 0; const B = T.filter(t => t.pile == null);
+    for (const a of B) for (const b of B) { if (b.layer <= a.layer) continue; const ra = tileRect(a), rb = tileRect(b);
+      const ov = Math.min(ra.x + ra.w, rb.x + rb.w) - Math.max(ra.x, rb.x) > 0.01 && Math.min(ra.y + ra.h, rb.y + rb.h) - Math.max(ra.y, rb.y) > 0.01;
+      if (ov) pairs++; if (ov !== a.cov.includes(b.id)) bad++; }
+    for (const t of T) if (t.pile != null) for (const o of T) if (o.pile === t.pile && o.pidx > t.pidx && !t.cov.includes(o.id)) bad++;
+    return { bad, pairs }; },
 };
 })();
 </script>
