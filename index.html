@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>字消云散</title>
+<meta name="description" content="字消云散：汉字消消乐，点字连成成语、词语、诗句即可消除。可离线游玩。">
+<meta name="theme-color" content="#f3efe6">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="字消云散">
+<meta name="format-detection" content="telephone=no">
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
+<style>
+html,body{margin:0;padding:0;height:100%;background:#f3efe6;overflow:hidden;position:fixed;inset:0;
+  overscroll-behavior:none;touch-action:none;-webkit-user-select:none;user-select:none;
+  -webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%}
+canvas{display:block;position:fixed;
+  top:env(safe-area-inset-top,0px);left:env(safe-area-inset-left,0px);
+  right:env(safe-area-inset-right,0px);bottom:env(safe-area-inset-bottom,0px);
+  width:calc(100vw - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px));
+  height:calc(100% - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));touch-action:none}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script src="./data.js"></script>
+<script>
+/* 字消云散 —— 受同类汉字消除玩法启发的非官方作品，与任何商业游戏无关；全部图形、音效由代码生成，题库为本项目自行整理 */
+(() => {
+'use strict';
+const cv = document.getElementById('c');
+let ctx = cv.getContext('2d');
+const FONT = '"PingFang SC","Microsoft YaHei","Noto Sans CJK SC","Noto Sans SC","WenQuanYi Micro Hei",sans-serif';
+const KFONT = '"Kaiti SC","STKaiti","KaiTi","Noto Serif CJK SC","Songti SC","STSong",' + FONT;
+// 字块配色（不按答案着色，只按字本身散列，所以颜色不泄露答案）
+const TILE_L = [['#ffe1d2', '#f2b79c'], ['#ffeeb5', '#e9c968'], ['#dff1cf', '#a9d38c'], ['#d3efe9', '#8ccfc2'], ['#d9e8fb', '#9cbfe8'], ['#e4e0fb', '#b2a9ea'], ['#f6dcf2', '#d9a6d1'], ['#ffdbe2', '#eba3b3']];
+const TILE_D = [['#5b4038', '#3e2a24'], ['#5a4f2c', '#3d351c'], ['#3a5233', '#263822'], ['#2f4e4b', '#1f3533'], ['#324866', '#213146'], ['#443d63', '#2e2945'], ['#583e57', '#3d2a3c'], ['#5d3843', '#41252e']];
+const THEMES = {
+  light: { bg:'#f3efe6', bg2:'#ebe4d6', board:'#fdfaf4', board2:'#f6f0e4', boardEdge:'rgba(110,90,60,.13)', spot:'rgba(110,90,60,.06)',
+    text:'#2b2d42', sub:'#857d6f', faint:'#b5ab98', card:'#fffdf9', cardEdge:'rgba(43,45,66,.07)', shadow:'rgba(90,70,40,.10)',
+    track:'#e8e0cf', seg:'#e7dfcd', segOn:'#fffdf9', red:'#e63946', redSoft:'rgba(230,57,70,.10)', green:'#2a9d8f', greenSoft:'rgba(42,157,143,.12)', gold:'#f4a261', accent:'#e8603f', accent2:'#f6a04d',
+    accentShadow:'rgba(232,96,63,.28)', panel:'#fffdf9', blue:'#3a86ff', clockBg:'#e7f0ff', dim:'rgba(43,45,66,.45)', tileInk:'#3a2f2a',
+    ink:'#2b2d42', inkText:'#ffffff', toast:'rgba(43,45,66,.92)', toastText:'#fff', deco:0.13, slot:'#efe8da',
+    tGood:['#4cc9a4','#2a9d8f'], tMid:['#f9d56e','#f4a261'], tLow:['#ff8a7a','#e63946'], tiles:TILE_L, conf:['#e76f51','#d99a00','#4f9a2c','#17998a','#2f86d0','#4a4fc0','#9447c4','#d64f95'] },
+  dark: { bg:'#191b26', bg2:'#11131b', board:'#272a3a', board2:'#222534', boardEdge:'rgba(255,255,255,.07)', spot:'rgba(255,255,255,.04)',
+    text:'#eceaf3', sub:'#9c9aae', faint:'#5c5f75', card:'#242737', cardEdge:'rgba(255,255,255,.07)', shadow:'rgba(0,0,0,.35)',
+    track:'#33374a', seg:'#2a2d3e', segOn:'#41455e', red:'#ff5a67', redSoft:'rgba(255,90,103,.14)', green:'#3cc2b2', greenSoft:'rgba(60,194,178,.14)', gold:'#ffb36b', accent:'#f06a48', accent2:'#ffa95a',
+    accentShadow:'rgba(240,106,72,.30)', panel:'#242737', blue:'#5b9bff', clockBg:'#1f2b45', dim:'rgba(5,6,12,.6)', tileInk:'#f3ede4',
+    ink:'#eceaf3', inkText:'#1b1d2a', toast:'rgba(236,234,243,.94)', toastText:'#1b1d2a', deco:0.16, slot:'#1d2030',
+    tGood:['#4fd6b2','#2fae9e'], tMid:['#ffd76e','#ffa95a'], tLow:['#ff8a7a','#ff4d5e'], tiles:TILE_D, conf:['#f2876b','#f0b52e','#6fc24c','#2fc2ae','#5aaaf0','#8287f2','#b67de2','#ee77b2'] }
+};
+const SAVE_KEY = 'zxys_save';
+let theme = (() => { try { return JSON.parse(localStorage.getItem(SAVE_KEY) || '{}').theme === 'dark' ? 'dark' : 'light'; } catch (e) { return 'light'; } })();
+const C = Object.assign({}, THEMES[theme]);
+
+// ---------- 题库 ----------
+const split = s => s.split(/\s+/).filter(Boolean);
+const MODES = {
+  word:  { name: '词语', L: 2, ordered: true,  tip: '依次点 2 个字，组成常用词语' },
+  idiom: { name: '成语', L: 4, ordered: true,  tip: '按顺序点 4 个字，组成成语' },
+  pin:   { name: '拼字', L: 2, ordered: false, tip: '点 2 个部件，拼成一个汉字' },
+  poem:  { name: '诗句', L: 5, ordered: true,  tip: '按顺序点 5 个字，拼出古诗名句' }
+};
+const DICT = {};
+(function buildDict() {
+  const B = window.WORDBANK || { word: '', idiom: '', pin: '', poem: '' };
+  for (const m of ['word', 'idiom', 'poem']) {
+    const list = [], map = new Map();
+    for (const w of split(B[m])) { const ch = [...w]; if (ch.length !== MODES[m].L || map.has(w)) continue; const e = { k: w, chars: ch, text: w }; list.push(e); map.set(w, e); }
+    DICT[m] = { list, map };
+  }
+  const list = [], map = new Map();
+  for (const t of split(B.pin)) { const c = [...t]; if (c.length !== 3) continue; const k = [c[0], c[1]].sort().join(''); if (map.has(k)) continue;
+    const e = { k, chars: [c[0], c[1]], out: c[2], text: c[0] + ' + ' + c[1] + ' = ' + c[2] }; list.push(e); map.set(k, e); }
+  DICT.pin = { list, map };
+  for (const m in DICT) { const by = new Map(); for (const e of DICT[m].list) for (const ch of new Set(e.chars)) { if (!by.has(ch)) by.set(ch, []); by.get(ch).push(e); } DICT[m].byChar = by; }
+})();
+function lookup(mode, chars) {
+  const D = DICT[mode]; if (!D) return null;
+  const k = MODES[mode].ordered ? chars.join('') : chars.slice().sort().join('');
+  return D.map.get(k) || null;
+}
+// 精确覆盖求解：剩下的字能否全部组成本模式的词条（优先处理候选最少的字，带失败记忆和节点上限）
+function solve(mode, counts, limit) {
+  const D = DICT[mode], memo = new Set(); let nodes = 0; limit = limit || 40000;
+  const keyOf = () => { const a = []; for (const [c, n] of counts) if (n > 0) a.push(c + n); return a.sort().join(','); };
+  const fits = e => { const need = new Map(); for (const c of e.chars) need.set(c, (need.get(c) || 0) + 1); for (const [c, n] of need) if ((counts.get(c) || 0) < n) return false; return true; };
+  function rec() {
+    if (++nodes > limit) throw 0;
+    let bestC = null, bestList = null;
+    for (const [c, n] of counts) {
+      if (n <= 0) continue;
+      const cand = (D.byChar.get(c) || []).filter(fits);
+      if (!cand.length) return null;
+      if (!bestList || cand.length < bestList.length) { bestC = c; bestList = cand; if (cand.length === 1) break; }
+    }
+    if (!bestList) return [];
+    const k = keyOf(); if (memo.has(k)) return null;
+    for (const e of bestList) {
+      for (const c of e.chars) counts.set(c, counts.get(c) - 1);
+      const r = rec();
+      for (const c of e.chars) counts.set(c, counts.get(c) + 1);
+      if (r) return [e].concat(r);
+    }
+    memo.add(k); return null;
+  }
+  try { return rec(); } catch (x) { return null; }
+}
+
+// ---------- 存档 ----------
+let save = {};
+try { save = JSON.parse(localStorage.getItem(SAVE_KEY) || '{}'); } catch (e) {}
+let diff = save.diff != null ? save.diff : 0;
+let prog = Array.isArray(save.prog) ? save.prog : [1, 1, 1];
+let maxLevel = prog[diff] || 1, best = save.best || 0, timeFactor = save.timeFactor || 1;
+let hintsStock = save.hints != null ? save.hints : 3;
+function persist() {
+  prog[diff] = maxLevel;
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 1, diff, prog, best, timeFactor, hints: hintsStock, theme })); } catch (e) {}
+}
+function applyThemeChrome() {
+  document.documentElement.style.background = document.body.style.background = C.bg;
+  const m = document.querySelector('meta[name=theme-color]'); if (m) m.setAttribute('content', C.bg);
+}
+function setTheme(t) { theme = t === 'dark' ? 'dark' : 'light'; Object.assign(C, THEMES[theme]); boardLayer = null; menuLayer = null; bgKey = ''; sprites.clear(); applyThemeChrome(); persist(); dirty = true; }
+function setDiff(d) { prog[diff] = maxLevel; diff = d; maxLevel = prog[diff] || 1; persist(); }
+
+// ---------- 工具 ----------
+function rngOf(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+function rr(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+function hashStr(s) { let h = 2166136261; for (const c of s) { h ^= c.codePointAt(0); h = Math.imul(h, 16777619); } return h >>> 0; }
+function vib(ms) { try { if (typeof navigator.vibrate === 'function') navigator.vibrate(ms); } catch (e) {} }
+
+// ---------- 声音（WebAudio 合成） ----------
+let actx = null;
+function beep(freq, dur, type, vol, slide) {
+  if (!actx) return;
+  try {
+    const o = actx.createOscillator(), g = actx.createGain(), t = actx.currentTime;
+    o.type = type || 'sine'; o.frequency.setValueAtTime(freq, t);
+    if (slide) o.frequency.exponentialRampToValueAtTime(slide, t + dur);
+    g.gain.setValueAtTime(vol || 0.12, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    o.connect(g); g.connect(actx.destination); o.start(t); o.stop(t + dur);
+  } catch (e) {}
+}
+const sfx = {
+  pick(i) { beep(480 + i * 70, 0.07, 'triangle', 0.09); },
+  ok(c) { [0, 1, 2].forEach(k => setTimeout(() => beep(620 + Math.min(c, 8) * 40 + k * 180, 0.12, 'triangle', 0.11), k * 55)); },
+  bad() { beep(150, 0.24, 'square', 0.07, 80); },
+  warn() { beep(420, 0.12, 'sine', 0.08, 360); },
+  win() { [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => beep(f, 0.22, 'triangle', 0.12), i * 110)); },
+  lose() { [392, 330, 262].forEach((f, i) => setTimeout(() => beep(f, 0.3, 'sine', 0.12), i * 160)); },
+  clock() { beep(880, 0.12, 'sine', 0.12); setTimeout(() => beep(1320, 0.15, 'sine', 0.12), 90); },
+  click() { beep(660, 0.05, 'sine', 0.06); },
+  shuffle() { for (let i = 0; i < 4; i++) setTimeout(() => beep(300 + i * 90, 0.06, 'triangle', 0.06), i * 40); }
+};
+
+// ---------- 关卡 ----------
+const DIFFS = [
+  { name: '普通', t0: 8,  t1: 24, Lmax: 30, tA: 3.4, tB: 8, pen: 3 },
+  { name: '困难', t0: 10, t1: 30, Lmax: 20, tA: 2.6, tB: 6, pen: 4 },
+  { name: '地狱', t0: 12, t1: 36, Lmax: 14, tA: 2.0, tB: 5, pen: 5 }
+];
+const MODE_SEQ = ['idiom', 'pin', 'word', 'idiom', 'poem'];
+const modeOf = n => n <= 2 ? 'word' : MODE_SEQ[(n - 3) % MODE_SEQ.length];
+function genLevel(n, d) {
+  const D = DIFFS[d], mode = modeOf(n), M = MODES[mode], pool = DICT[mode].list;
+  const t = clamp((n - 1) / (D.Lmax - 1), 0, 1), post = Math.max(0, n - D.Lmax);
+  const want = Math.min(36, Math.round(D.t0 + (D.t1 - D.t0) * t + post / 6));
+  const K = clamp(Math.round(want / M.L), 2, Math.floor(36 / M.L));
+  const rng = rngOf(n * 7919 + 13 + d * 104729);
+  const idx = pool.map((_, i) => i);
+  for (let i = idx.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); const x = idx[i]; idx[i] = idx[j]; idx[j] = x; }
+  const answers = idx.slice(0, K).map(i => pool[i]);
+  const chars = []; answers.forEach(e => e.chars.forEach(c => chars.push(c)));
+  for (let i = chars.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); const x = chars[i]; chars[i] = chars[j]; chars[j] = x; }
+  const N = chars.length, cols = N <= 12 ? 4 : N <= 20 ? 5 : 6, rows = Math.ceil(N / cols);
+  const clock = n >= 2 ? Math.floor(rng() * N) : -1;
+  const timeMul = Math.max(0.75, 1 - post * 0.005);
+  return { n, d, mode, answers, chars, cols, rows, clock, time: (D.tB + N * D.tA) * timeMul, seed: n * 31 + d };
+}
+
+// ---------- 游戏状态 ----------
+let W = 0, H = 0, DPR = 1, cs = 50, ox = 0, oy = 0, bw = 0, bh = 0;
+let state = 'menu', level = 1, mode = 'word', L = 2, cols = 4, rows = 2, tiles = [], plan = [], sel = [], hintIds = [];
+let timeLeft = 0, timeTotal = 0, score = 0, levelScore = 0, combo = 0, lastClear = -9, mistakes = 0, groups = 0;
+let elapsed = 0, particles = [], floaters = [], toast = null, now = 0, slotFx = null;
+let shake = 0, flash = 0, buttons = [], lastResult = null, loseReason = '';
+let segAnim = diff, comboAt = -9, panelAt = -9, starPopped = [];
+
+function startLevel(n) {
+  level = n;
+  const g = genLevel(n, diff);
+  mode = g.mode; L = MODES[mode].L; cols = g.cols; rows = g.rows; plan = g.answers.slice();
+  tiles = g.chars.map((ch, i) => ({ id: i, ch, ci: hashStr(ch) % 8, alive: true, pop: -1, wrong: 0, clock: i === g.clock, col: 0, row: 0, ry: 0, vy: 0 }));
+  layoutTiles(true);
+  sel = []; hintIds = []; levelScore = 0; combo = 0; lastClear = -9; mistakes = 0; groups = g.answers.length; elapsed = 0;
+  particles = []; floaters = []; shake = 0; flash = 0; slotFx = null;
+  timeTotal = Math.round(g.time * timeFactor); timeLeft = timeTotal;
+  toast = { text: MODES[mode].tip, life: 2.2 };
+  state = 'play'; computeBoard();
+}
+// 每列从底往上堆；fresh=true 时直接落位（开局），否则保留当前位置做下落动画
+function layoutTiles(fresh) {
+  const alive = tiles.filter(t => t.alive);
+  if (fresh) {
+    alive.forEach((t, i) => { t.col = i % cols; t.row = rows - 1 - Math.floor(i / cols); t.ry = t.row; });
+    // 最上一行不满时居中
+    const top = alive.length % cols;
+    if (top) { const off = Math.floor((cols - top) / 2); alive.slice(alive.length - top).forEach((t, i) => { t.col = off + i; }); }
+    return;
+  }
+  for (let c = 0; c < cols; c++) {
+    const list = alive.filter(t => t.col === c).sort((a, b) => b.row - a.row);
+    list.forEach((t, i) => { t.row = rows - 1 - i; });
+  }
+}
+function shuffleBoard() {
+  if (state !== 'play') return;
+  const alive = tiles.filter(t => t.alive && t.pop < 0);
+  const r = rngOf((Math.random() * 1e9) | 0), order = alive.slice();
+  for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); const x = order[i]; order[i] = order[j]; order[j] = x; }
+  order.forEach((t, i) => { const c = i % cols, k = Math.floor(i / cols); t.col = c; t.row = rows - 1 - k; t.ry = t.row - 0.6 - Math.random() * 0.4; t.vy = 0; });
+  sel = []; hintIds = []; sfx.shuffle(); dirty = true;
+}
+
+const aliveCount = () => tiles.reduce((s, t) => s + (t.alive ? 1 : 0), 0);
+function tapTile(t) {
+  if (!t || !t.alive || t.pop >= 0 || state !== 'play') return;
+  const i = sel.indexOf(t.id);
+  if (i >= 0) { sel.splice(i, 1); sfx.click(); return; }   // 再点一次取消
+  sel.push(t.id); sfx.pick(sel.length);
+  if (sel.length >= L) evaluate();
+}
+function evaluate() {
+  const ids = sel.slice(), chars = ids.map(id => tiles[id].ch);
+  sel = [];
+  const e = lookup(mode, chars);
+  if (!e) { wrong(ids, chars); return; }
+  const pi = plan.findIndex(p => p.k === e.k);
+  if (pi >= 0) { plan.splice(pi, 1); accept(e, ids); return; }
+  // 不是预设答案，但也是合法词条：只要剩下的字还能全部组成词，就算对
+  const counts = new Map();
+  for (const t of tiles) if (t.alive && t.pop < 0 && !ids.includes(t.id)) counts.set(t.ch, (counts.get(t.ch) || 0) + 1);
+  const sol = solve(mode, counts);
+  if (sol) { plan = sol; accept(e, ids); return; }
+  slotFx = { chars, kind: 'warn', life: 0.9 };
+  toast = { text: `「${e.out ? e.out : e.text}」没错，但这样消会让剩下的字凑不成词`, life: 2.2 };
+  for (const id of ids) tiles[id].wrong = 0.3;
+  sfx.warn();
+}
+function wrong(ids, chars) {
+  mistakes++; combo = 0;
+  const pen = DIFFS[diff].pen; timeLeft = Math.max(0, timeLeft - pen);
+  for (const id of ids) tiles[id].wrong = 0.45;
+  slotFx = { chars, kind: 'bad', life: 0.7 };
+  shake = 0.25; flash = 0.2; sfx.bad(); vib(50);
+  const [x, y] = tileXY(tiles[ids[ids.length - 1]]);
+  floaters.push({ x, y: y - cs * 0.4, text: `不成词  -${pen}秒`, life: 1, col: C.red });
+}
+function accept(e, ids) {
+  if (elapsed - lastClear < 4) combo++; else combo = 1;
+  if (combo >= 2) comboAt = now;
+  lastClear = elapsed;
+  const pts = 10 * L + (combo - 1) * 10;
+  levelScore += pts; score += pts; groups--;
+  let cx = 0, cy = 0;
+  for (const id of ids) {
+    const t = tiles[id]; t.alive = false; t.pop = 0; const [x, y] = tileXY(t); cx += x; cy += y;
+    burst(x, y, C.tiles[t.ci][1], 8);
+    if (t.clock) { timeLeft += 5; floaters.push({ x, y, text: '+5秒', life: 1.2, col: C.blue, big: true }); sfx.clock(); }
+  }
+  cx /= ids.length; cy /= ids.length;
+  hintIds = hintIds.filter(id => tiles[id].alive);
+  if (hintIds.length && hintIds.length < L) hintIds = [];
+  slotFx = { chars: ids.map(id => tiles[id].ch), kind: 'ok', life: 0.8, out: e.out };
+  floaters.push({ x: clamp(cx, 90, W - 90), y: cy - cs * 0.3, text: (e.out ? e.text : e.text) , life: 1.1, col: C.green, big: true });
+  floaters.push({ x: clamp(cx, 60, W - 60), y: cy + cs * 0.35, text: '+' + pts + (combo >= 2 ? '  连击×' + combo : ''), life: 0.9, col: combo >= 2 ? C.gold : C.green });
+  if (combo > 0 && combo % 3 === 0) { timeLeft += 3; floaters.push({ x: W / 2, y: oy - 8, text: '连击奖励 +3秒', life: 1.3, col: C.gold, big: true }); }
+  layoutTiles(false);
+  sfx.ok(combo);
+}
+function useHint() {
+  if (state !== 'play') return;
+  if (hintIds.length && hintIds.every(id => tiles[id].alive)) return;
+  if (hintsStock <= 0) { toast = { text: '提示用完了（每过一关 +1）', life: 1.6 }; return; }
+  const e = plan[0]; if (!e) return;
+  const used = new Set(), ids = [];
+  for (const c of e.chars) { const t = tiles.find(t => t.alive && t.pop < 0 && t.ch === c && !used.has(t.id)); if (!t) return; used.add(t.id); ids.push(t.id); }
+  hintIds = ids; sel = []; hintsStock--; persist(); sfx.click();
+}
+function win() {
+  state = 'win';
+  const stars = mistakes === 0 ? 3 : mistakes <= 2 ? 2 : 1;
+  const bonus = Math.round(timeLeft) * 5;
+  score += bonus; levelScore += bonus;
+  best = Math.max(best, score); maxLevel = Math.max(maxLevel, level + 1);
+  hintsStock = Math.min(9, hintsStock + 1);
+  timeFactor = Math.max(0.85, timeFactor * 0.97);
+  lastResult = { stars, bonus, time: elapsed, mistakes };
+  persist(); sfx.win();
+  panelAt = now; starPopped = []; confetti();
+}
+function lose(reason) {
+  state = 'lose'; loseReason = reason; panelAt = now; sel = [];
+  timeFactor = Math.min(1.6, timeFactor * 1.12);
+  best = Math.max(best, score); persist(); sfx.lose();
+}
+
+// ---------- 布局 ----------
+let cvRect = { left: 0, top: 0 };
+function resize(force) {
+  const rc = cv.getBoundingClientRect(); cvRect = { left: rc.left, top: rc.top };
+  const nW = Math.round(rc.width) || innerWidth, nH = Math.round(rc.height) || innerHeight, nD = Math.min(window.devicePixelRatio || 1, 2);
+  if (!force && nW === W && nH === H && nD === DPR) return false;
+  W = nW; H = nH; DPR = nD;
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  menuLayer = null; sprites.clear(); bgKey = '';
+  computeBoard();
+  dirty = true; return true;
+}
+let resizeTimer = 0;
+function queueResize() { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => resize(false), 120); }
+const SLOT_Y = 118, SLOT_H = 64;
+function computeBoard() {
+  const top = SLOT_Y + SLOT_H + 22, bot = 100;
+  const aw = W - 44, ah = H - top - bot - 12;
+  cs = Math.max(24, Math.min(aw / cols, ah / rows, 74));
+  bw = cs * cols; bh = cs * rows; ox = (W - bw) / 2; oy = top + Math.max(0, (ah - bh) / 2) * 0.6;
+  boardLayer = null; sprites.clear();
+}
+const tileXY = t => [ox + (t.col + 0.5) * cs, oy + (t.ry + 0.5) * cs];
+let boardLayer = null, menuLayer = null, dirty = true, bgKey = '';
+function makeLayer(w, h) {
+  const c = document.createElement('canvas'); c.width = Math.max(1, Math.ceil(w * DPR)); c.height = Math.max(1, Math.ceil(h * DPR));
+  const g = c.getContext('2d'); g.setTransform(DPR, 0, 0, DPR, 0, 0); return { c, g, w, h };
+}
+function withCtx(g, fn) { const old = ctx; ctx = g; try { fn(); } finally { ctx = old; } }
+function buildBoardLayer() {
+  const m = 30, pad = 10, L2 = makeLayer(bw + m * 2, bh + m * 2);
+  L2.x = ox - m; L2.y = oy - m;
+  withCtx(L2.g, () => {
+    ctx.translate(-L2.x, -L2.y);
+    const g = ctx.createLinearGradient(0, oy - pad, 0, oy + bh + pad); g.addColorStop(0, C.board); g.addColorStop(1, C.board2);
+    // 离屏只画一次，允许用 shadowBlur
+    ctx.shadowColor = C.shadow; ctx.shadowBlur = 22; ctx.shadowOffsetY = 8; ctx.fillStyle = g; rr(ox - pad, oy - pad, bw + pad * 2, bh + pad * 2, 22); ctx.fill();
+    ctx.shadowBlur = 0; ctx.shadowOffsetY = 0; ctx.strokeStyle = C.boardEdge; ctx.lineWidth = 1; ctx.stroke();
+    ctx.fillStyle = C.spot;
+    for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) { rr(ox + x * cs + 4, oy + y * cs + 4, cs - 8, cs - 8, cs * 0.2); ctx.fill(); }
+  });
+  boardLayer = L2;
+}
+// 字块精灵缓存：同一个字+颜色+尺寸只画一次
+const sprites = new Map();
+function tileSprite(ch, ci, size) {
+  const k = ch + '|' + ci + '|' + Math.round(size);
+  let s = sprites.get(k); if (s) return s;
+  const ed = Math.max(3, size * 0.07), Ly = makeLayer(size, size + ed);
+  withCtx(Ly.g, () => {
+    const [face, edge] = C.tiles[ci], r = size * 0.22;
+    ctx.fillStyle = edge; rr(0, ed, size, size, r); ctx.fill();
+    ctx.fillStyle = face; rr(0, 0, size, size, r); ctx.fill();
+    ctx.fillStyle = theme === 'dark' ? 'rgba(255,255,255,.06)' : 'rgba(255,255,255,.45)'; rr(size * 0.1, size * 0.06, size * 0.8, size * 0.24, size * 0.12); ctx.fill();
+    ctx.fillStyle = C.tileInk; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = `700 ${Math.round(size * 0.6)}px ${KFONT}`; ctx.fillText(ch, size / 2, size / 2 + size * 0.03);
+  });
+  s = { c: Ly.c, w: size, h: size + ed }; sprites.set(k, s);
+  if (sprites.size > 400) sprites.delete(sprites.keys().next().value);
+  return s;
+}
+
+// ---------- 粒子 / 飘字 ----------
+function starBurst(x, y) {
+  for (let i = 0; i < 9; i++) { const a = i / 9 * Math.PI * 2, v = 90 + Math.random() * 70;
+    particles.push({ star: 1, x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 30, life: 0.55 + Math.random() * 0.25, col: i % 2 ? '#ffc93c' : '#ffe08a', r: 3 + Math.random() * 2.5, rot: Math.random() * 6 }); }
+}
+function confetti() {
+  const cols2 = C.conf.concat(['#ffc93c']);
+  for (let i = 0; i < 70; i++) particles.push({ cf: 1, x: Math.random() * W, y: -10 - Math.random() * H * 0.35, vx: (Math.random() - 0.5) * 80, vy: 60 + Math.random() * 80,
+    rot: Math.random() * 6, vr: (Math.random() - 0.5) * 8, ph: Math.random() * 6, flip: 1, w: 6 + Math.random() * 5, h: 3.5 + Math.random() * 3, col: cols2[i % cols2.length], life: 2.6 + Math.random() * 1.2 });
+}
+function burst(x, y, col, n) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2, v = 60 + Math.random() * 160;
+    particles.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 40, life: 0.45 + Math.random() * 0.35, col, r: 2 + Math.random() * 3 });
+  }
+}
+
+// ---------- 更新 ----------
+function update(dt) {
+  now += dt;
+  for (const p of particles) {
+    if (p.cf) { p.vy = Math.min(p.vy + 90 * dt, 170); p.vx *= 1 - dt * 0.8; p.x += (p.vx + Math.sin(now * 3 + p.ph) * 26) * dt; p.y += p.vy * dt; p.rot += p.vr * dt; p.flip = Math.cos(now * 6 + p.ph); }
+    else { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += (p.star ? 160 : 400) * dt; if (p.star) p.rot += 3 * dt; }
+    p.life -= dt;
+  }
+  if (particles.length) particles = particles.filter(p => p.life > 0);
+  for (const f of floaters) { f.y -= 36 * dt; f.life -= dt; }
+  if (floaters.length) floaters = floaters.filter(f => f.life > 0);
+  if (toast) { toast.life -= dt; if (toast.life <= 0) toast = null; }
+  if (slotFx) { slotFx.life -= dt; if (slotFx.life <= 0) slotFx = null; }
+  shake = Math.max(0, shake - dt); flash = Math.max(0, flash - dt);
+  segAnim += (diff - segAnim) * Math.min(1, dt * 14); if (Math.abs(diff - segAnim) < 0.002) segAnim = diff;
+  if (state === 'win' && lastResult) { const { py } = panelGeom();
+    for (let i = 0; i < lastResult.stars; i++) if (!starPopped[i] && now - panelAt >= STAR_D[i] + 0.12) { starPopped[i] = true; starBurst(W / 2 + STAR_X[i], py + 122 - (i === 1 ? 6 : 0)); sfx.click(); } }
+  if (state !== 'play') return;
+  elapsed += dt; timeLeft -= dt;
+  let busy = false;
+  for (const t of tiles) {
+    if (t.pop >= 0) { t.pop += dt / 0.28; if (t.pop >= 1) t.pop = -2; else busy = true; }
+    if (t.wrong > 0) t.wrong = Math.max(0, t.wrong - dt);
+    if (t.alive && t.ry !== t.row) {
+      // 只会往下落（消除后的重力 / 洗牌后的落下）
+      if (t.ry < t.row) { t.vy += 40 * dt; t.ry = Math.min(t.row, t.ry + t.vy * dt); }
+      if (t.ry >= t.row) { t.ry = t.row; t.vy = 0; }
+    }
+  }
+  if (timeLeft <= 0) { timeLeft = 0; lose('时间到了'); return; }
+  if (!busy && !tiles.some(t => t.alive)) win();
+}
+
+// ---------- 图标（全部代码绘制） ----------
+const easeOutBack = t => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); };
+function drawIcon(name, x, y, s, col, bgc) {
+  ctx.save(); ctx.translate(x, y); ctx.strokeStyle = col; ctx.fillStyle = col;
+  ctx.lineWidth = Math.max(1.6, s * 0.12); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  const h = s / 2;
+  if (name === 'home') {
+    ctx.beginPath(); ctx.moveTo(-h * 0.9, -h * 0.05); ctx.lineTo(0, -h * 0.85); ctx.lineTo(h * 0.9, -h * 0.05); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-h * 0.62, -h * 0.25); ctx.lineTo(-h * 0.62, h * 0.8); ctx.lineTo(h * 0.62, h * 0.8); ctx.lineTo(h * 0.62, -h * 0.25); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-h * 0.18, h * 0.8); ctx.lineTo(-h * 0.18, h * 0.3); ctx.lineTo(h * 0.18, h * 0.3); ctx.lineTo(h * 0.18, h * 0.8); ctx.stroke();
+  } else if (name === 'restart') {
+    const R = h * 0.68, a1 = Math.PI * 1.5;
+    ctx.beginPath(); ctx.arc(0, 0, R, -Math.PI * 0.12, a1 - 0.25); ctx.stroke();
+    const ex = Math.cos(a1 - 0.25) * R, ey = Math.sin(a1 - 0.25) * R, tx = -Math.sin(a1 - 0.25), ty = Math.cos(a1 - 0.25), nx = Math.cos(a1 - 0.25), ny = Math.sin(a1 - 0.25);
+    ctx.beginPath(); ctx.moveTo(ex + tx * h * 0.42, ey + ty * h * 0.42); ctx.lineTo(ex + nx * h * 0.3 - tx * h * 0.05, ey + ny * h * 0.3 - ty * h * 0.05);
+    ctx.lineTo(ex - nx * h * 0.3 - tx * h * 0.05, ey - ny * h * 0.3 - ty * h * 0.05); ctx.closePath(); ctx.lineWidth = s * 0.06; ctx.stroke(); ctx.fill();
+  } else if (name === 'bulb') {
+    ctx.beginPath(); ctx.arc(0, -h * 0.2, h * 0.55, Math.PI * 0.8, Math.PI * 2.2); ctx.lineTo(h * 0.25, h * 0.45); ctx.lineTo(-h * 0.25, h * 0.45); ctx.closePath(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-h * 0.22, h * 0.75); ctx.lineTo(h * 0.22, h * 0.75); ctx.stroke();
+  } else if (name === 'play') {
+    ctx.beginPath(); ctx.moveTo(-h * 0.45, -h * 0.65); ctx.lineTo(h * 0.7, 0); ctx.lineTo(-h * 0.45, h * 0.65); ctx.closePath(); ctx.lineWidth = s * 0.08; ctx.stroke(); ctx.fill();
+  } else if (name === 'next') {
+    ctx.beginPath(); ctx.moveTo(-h * 0.7, 0); ctx.lineTo(h * 0.6, 0); ctx.moveTo(h * 0.1, -h * 0.5); ctx.lineTo(h * 0.65, 0); ctx.lineTo(h * 0.1, h * 0.5); ctx.stroke();
+  } else if (name === 'moon') {
+    ctx.beginPath(); ctx.arc(0, 0, h * 0.72, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = bgc; ctx.beginPath(); ctx.arc(h * 0.38, -h * 0.3, h * 0.6, 0, Math.PI * 2); ctx.fill();
+  } else if (name === 'sun') {
+    ctx.beginPath(); ctx.arc(0, 0, h * 0.36, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; ctx.moveTo(Math.cos(a) * h * 0.6, Math.sin(a) * h * 0.6); ctx.lineTo(Math.cos(a) * h * 0.85, Math.sin(a) * h * 0.85); } ctx.stroke();
+  } else if (name === 'clock') {
+    ctx.beginPath(); ctx.arc(0, 0, h * 0.78, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, -h * 0.45); ctx.lineTo(0, 0); ctx.lineTo(h * 0.35, h * 0.2); ctx.stroke();
+  } else if (name === 'trophy') {
+    ctx.beginPath(); ctx.moveTo(-h * 0.55, -h * 0.7); ctx.lineTo(h * 0.55, -h * 0.7); ctx.lineTo(h * 0.45, -h * 0.05);
+    ctx.quadraticCurveTo(0, h * 0.35, -h * 0.45, -h * 0.05); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.arc(-h * 0.58, -h * 0.4, h * 0.22, Math.PI * 0.5, Math.PI * 1.5); ctx.arc(h * 0.58, -h * 0.4, h * 0.22, -Math.PI * 0.5, Math.PI * 0.5); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, h * 0.15); ctx.lineTo(0, h * 0.5); ctx.stroke(); rr(-h * 0.4, h * 0.5, h * 0.8, h * 0.28, h * 0.08); ctx.fill();
+  } else if (name === 'shuffle') {
+    ctx.beginPath(); ctx.moveTo(-h * 0.8, -h * 0.45); ctx.bezierCurveTo(-h * 0.1, -h * 0.45, h * 0.0, h * 0.45, h * 0.6, h * 0.45);
+    ctx.moveTo(-h * 0.8, h * 0.45); ctx.bezierCurveTo(-h * 0.1, h * 0.45, h * 0.0, -h * 0.45, h * 0.6, -h * 0.45); ctx.stroke();
+    for (const sy of [-1, 1]) { ctx.beginPath(); ctx.moveTo(h * 0.9, sy * h * 0.45); ctx.lineTo(h * 0.5, sy * h * 0.45 - h * 0.28); ctx.lineTo(h * 0.5, sy * h * 0.45 + h * 0.28); ctx.closePath(); ctx.fill(); }
+  } else if (name === 'x') {
+    ctx.beginPath(); ctx.moveTo(-h * 0.5, -h * 0.5); ctx.lineTo(h * 0.5, h * 0.5); ctx.moveTo(h * 0.5, -h * 0.5); ctx.lineTo(-h * 0.5, h * 0.5); ctx.stroke();
+  } else if (name === 'grid') {
+    for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) { rr(-h * 0.75 + i * h * 0.85, -h * 0.75 + j * h * 0.85, h * 0.65, h * 0.65, h * 0.15); ctx.fill(); }
+  } else if (name === 'face') {
+    ctx.beginPath(); ctx.arc(0, 0, h * 0.8, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(-h * 0.3, -h * 0.15, h * 0.09, 0, Math.PI * 2); ctx.arc(h * 0.3, -h * 0.15, h * 0.09, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(0, h * 0.55, h * 0.32, Math.PI * 1.15, Math.PI * 1.85); ctx.stroke();
+  }
+  ctx.restore();
+}
+function card(x, y, w, h, r, fill) {
+  ctx.fillStyle = C.shadow; rr(x, y + 2, w, h, r); ctx.fill();
+  ctx.fillStyle = fill || C.card; rr(x, y, w, h, r); ctx.fill();
+  ctx.strokeStyle = C.cardEdge; ctx.lineWidth = 1; ctx.stroke();
+}
+let pressK = null, pressAt = -9, btnBusy = false;
+function accentGrad(x, y, w, h) { const g = ctx.createLinearGradient(x, y, x + w, y + h); g.addColorStop(0, C.accent2); g.addColorStop(1, C.accent); return g; }
+function button(x, y, w, h, label, cb, style, icon, key) {
+  key = key || label || icon; buttons.push({ x, y, w, h, cb, key });
+  const pr = pressK === key ? clamp((now - pressAt) / 0.2, 0, 1) : 1, sc = 1 - 0.08 * Math.sin(Math.PI * pr);
+  ctx.save(); ctx.translate(x + w / 2, y + h / 2); ctx.scale(sc, sc); ctx.translate(-x - w / 2, -y - h / 2);
+  const r = Math.min(h, w) / 2; let fg = C.text;
+  if (style === 'primary') {
+    ctx.fillStyle = C.accentShadow; rr(x, y + 4, w, h, r); ctx.fill();
+    ctx.fillStyle = accentGrad(x, y, w, h); rr(x, y, w, h, r); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.18)'; rr(x + 6, y + 3, w - 12, h * 0.42, h * 0.21); ctx.fill();
+    fg = '#fff';
+  } else if (style === 'ink') {
+    ctx.fillStyle = C.shadow; rr(x, y + 3, w, h, r); ctx.fill();
+    ctx.fillStyle = C.ink; rr(x, y, w, h, r); ctx.fill(); fg = C.inkText;
+  } else if (style === 'ghost') { fg = C.sub; }
+  else { card(x, y, w, h, r); }
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = fg;
+  const fs = style === 'ghost' ? 14 : Math.round(clamp(h * 0.34, 13, 20));
+  ctx.font = `${style === 'ghost' ? 500 : 700} ${fs}px ${FONT}`;
+  const tw = label ? ctx.measureText(label).width : 0, is = style === 'round' ? h * 0.46 : fs * 1.1, gap = label && icon ? 8 : 0;
+  const tot = (icon ? is : 0) + gap + tw, sx = x + w / 2 - tot / 2;
+  if (icon) drawIcon(icon, sx + is / 2, y + h / 2, is, fg, style === 'primary' ? C.accent : C.card);
+  if (label) { ctx.fillStyle = fg; ctx.textAlign = 'left'; ctx.fillText(label, sx + (icon ? is : 0) + gap, y + h / 2 + 1); }
+  ctx.restore();
+}
+function starPath(x, y, r, rot) {
+  ctx.beginPath();
+  for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + (rot || 0) + i * Math.PI / 5, rad = i % 2 ? r * 0.48 : r; ctx.lineTo(x + Math.cos(a) * rad, y + Math.sin(a) * rad); }
+  ctx.closePath();
+}
+function drawStar(x, y, r, on, sc) {
+  starPath(x, y, r); ctx.fillStyle = C.track; ctx.fill();
+  if (!on || sc <= 0) return;
+  ctx.save(); ctx.translate(x, y); ctx.scale(sc, sc); ctx.lineJoin = 'round';
+  starPath(0, 0, r); ctx.fillStyle = '#ffc93c'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = '#f2a20c'; ctx.stroke();
+  starPath(0, -r * 0.08, r * 0.55); ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fill();
+  ctx.restore();
+}
+
+function drawHUD() {
+  const top = 8, ch = 48;
+  ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+  ctx.font = `800 17px ${FONT}`; const t1 = `第 ${level} 关`, w1a = ctx.measureText(t1).width;
+  ctx.font = `12px ${FONT}`; const t2 = `${DIFFS[diff].name} · ${MODES[mode].name}`, w1b = ctx.measureText(t2).width;
+  const lw = Math.max(w1a, w1b) + 32; card(14, top, lw, ch, 18);
+  ctx.fillStyle = C.text; ctx.font = `800 17px ${FONT}`; ctx.fillText(t1, 30, top + 18);
+  ctx.fillStyle = C.sub; ctx.font = `12px ${FONT}`; ctx.fillText(t2, 30, top + 35);
+  ctx.font = `800 18px ${FONT}`; const sv = String(score), rw = Math.max(76, ctx.measureText(sv).width + 32), rx = W - 14 - rw;
+  card(rx, top, rw, ch, 18); ctx.textAlign = 'center';
+  ctx.fillStyle = C.sub; ctx.font = `12px ${FONT}`; ctx.fillText('得分', rx + rw / 2, top + 16);
+  ctx.fillStyle = C.text; ctx.font = `800 18px ${FONT}`; ctx.fillText(sv, rx + rw / 2, top + 33);
+  // 中：实时星级（失误越多星越少）
+  const stars = mistakes === 0 ? 3 : mistakes <= 2 ? 2 : 1;
+  const gapL = 14 + lw + 8, gapR = rx - 8, sp = clamp((gapR - gapL - 20) / 3, 18, 28), hw = sp * 3 + 14;
+  const hx = clamp(W / 2 - hw / 2, gapL, gapR - hw);
+  card(hx, top, hw, ch, ch / 2);
+  for (let i = 0; i < 3; i++) drawStar(hx + 7 + sp * (i + 0.5), top + ch / 2 + 1, sp * 0.4, i < stars, 1);
+  // 倒计时
+  const pillW = 66, by = 66, bx = 14, bw2 = W - 28 - pillW - 8, bh2 = 12, r = clamp(timeLeft / timeTotal, 0, 1);
+  ctx.fillStyle = C.track; rr(bx, by + 8, bw2, bh2, bh2 / 2); ctx.fill();
+  if (r > 0.01) {
+    const cols2 = r > 0.5 ? C.tGood : r > 0.2 ? C.tMid : C.tLow, g = ctx.createLinearGradient(bx, 0, bx + bw2, 0);
+    g.addColorStop(0, cols2[0]); g.addColorStop(1, cols2[1]);
+    ctx.globalAlpha = r <= 0.2 ? 0.65 + 0.35 * Math.abs(Math.sin(now * 6)) : 1;
+    ctx.fillStyle = g; rr(bx, by + 8, Math.max(bh2, bw2 * r), bh2, bh2 / 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.3)'; rr(bx + 3, by + 9.5, Math.max(4, bw2 * r - 6), 3.5, 1.75); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+  const px = W - 14 - pillW; card(px, by, pillW, 28, 14);
+  const low = r <= 0.2; drawIcon('clock', px + 18, by + 14, 15, low ? C.red : C.sub);
+  ctx.fillStyle = low ? C.red : C.text; ctx.font = `700 14px ${FONT}`; ctx.textAlign = 'left'; ctx.fillText(`${Math.ceil(timeLeft)}s`, px + 30, by + 15);
+  // 第三行：剩余组数 · 连击 · 玩法说明
+  const ry = 104;
+  drawIcon('grid', 24, ry, 12, C.sub); ctx.fillStyle = C.sub; ctx.font = `13px ${FONT}`; ctx.textAlign = 'left'; ctx.fillText(`剩余 ${groups} 组`, 36, ry + 1);
+  ctx.textAlign = 'right'; ctx.fillText(MODES[mode].ordered ? `${L} 字 · 按顺序` : '2 部件 · 不分先后', W - 16, ry + 1);
+  if (combo >= 2 && elapsed - lastClear < 4) {
+    const t = now - comboAt, sc = 1 + 0.38 * Math.exp(-t * 9) * Math.cos(t * 26);
+    ctx.save(); ctx.translate(W / 2, ry); ctx.scale(sc, sc);
+    ctx.font = `800 14px ${FONT}`; const txt = `连击 ×${combo}`, tw = ctx.measureText(txt).width + 24;
+    ctx.fillStyle = C.accentShadow; rr(-tw / 2, -11 + 2, tw, 22, 11); ctx.fill();
+    ctx.fillStyle = accentGrad(-tw / 2, -11, tw, 22); rr(-tw / 2, -11, tw, 22, 11); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.fillText(txt, 0, 1); ctx.restore();
+  }
+}
+// 选字槽：显示已选的字；拼字模式显示「A + B = ?」
+function drawSlots() {
+  const x0 = 14, w0 = W - 28, y0 = SLOT_Y, h0 = SLOT_H;
+  card(x0, y0, w0, h0, 22);
+  const fx = slotFx, showFx = fx && sel.length === 0;
+  const chars = showFx ? fx.chars : sel.map(id => tiles[id].ch);
+  const kindCol = showFx ? (fx.kind === 'ok' ? C.green : fx.kind === 'bad' ? C.red : C.gold) : null;
+  const clearW = sel.length ? 44 : 0;
+  const pin = mode === 'pin', n = pin ? 3 : L;
+  const gap = pin ? 30 : 8, s = Math.min(46, (w0 - 28 - clearW - gap * (n - 1)) / n);
+  const tot = s * n + gap * (n - 1), sx = x0 + (w0 - clearW - tot) / 2, sy = y0 + (h0 - s) / 2;
+  let jx = 0; if (showFx && fx.kind !== 'ok') jx = Math.sin(fx.life * 50) * 4 * Math.min(1, fx.life * 3);
+  for (let i = 0; i < n; i++) {
+    const x = sx + i * (s + gap) + jx;
+    let ch = chars[i];
+    if (pin && i === 2) ch = showFx && fx.kind === 'ok' ? fx.out : (chars.length === 2 ? '？' : '');
+    if (pin && i > 0) { ctx.fillStyle = C.sub; ctx.font = `700 20px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(i === 1 ? '+' : '=', x - gap / 2, sy + s / 2); }
+    if (ch) {
+      if (pin && i === 2 && ch === '？') { ctx.fillStyle = C.slot; rr(x, sy, s, s, s * 0.22); ctx.fill(); ctx.fillStyle = C.faint; ctx.font = `700 ${s * 0.5}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('？', x + s / 2, sy + s / 2); continue; }
+      const sp = tileSprite(ch, hashStr(ch) % 8, s);
+      ctx.drawImage(sp.c, x, sy - 2, sp.w, sp.h);
+      if (kindCol) { ctx.strokeStyle = kindCol; ctx.lineWidth = 3; rr(x - 1.5, sy - 3.5, s + 3, s + 3, s * 0.24); ctx.stroke(); }
+    } else {
+      ctx.fillStyle = C.slot; rr(x, sy, s, s, s * 0.22); ctx.fill();
+      ctx.save(); ctx.setLineDash([4, 4]); ctx.strokeStyle = C.faint; ctx.lineWidth = 1.2; rr(x + 0.5, sy + 0.5, s - 1, s - 1, s * 0.22); ctx.stroke(); ctx.restore();
+    }
+  }
+  if (sel.length) button(x0 + w0 - 50, y0 + (h0 - 36) / 2, 36, 36, '', () => { sel = []; }, 'round', 'x', 'clr');
+}
+function drawBoard() {
+  if (!boardLayer) buildBoardLayer();
+  ctx.drawImage(boardLayer.c, boardLayer.x, boardLayer.y, boardLayer.w, boardLayer.h);
+  const ts = cs - 8;
+  const draw = (t) => {
+    let [x, y] = tileXY(t);
+    const si = sel.indexOf(t.id), hi = hintIds.indexOf(t.id);
+    let sc = 1, alpha = 1;
+    if (t.pop >= 0) { sc = 1 + 0.3 * t.pop; alpha = 1 - t.pop; }
+    if (t.wrong > 0) x += Math.sin(t.wrong * 60) * 4;
+    if (si >= 0) y -= 5;
+    const sp = tileSprite(t.ch, t.ci, ts);
+    ctx.globalAlpha = alpha;
+    if (sc !== 1) { ctx.save(); ctx.translate(x, y); ctx.scale(sc, sc); ctx.drawImage(sp.c, -ts / 2, -ts / 2, sp.w, sp.h); ctx.restore(); }
+    else ctx.drawImage(sp.c, x - ts / 2, y - ts / 2, sp.w, sp.h);
+    ctx.globalAlpha = 1;
+    if (t.pop >= 0) return;
+    if (t.wrong > 0) { ctx.strokeStyle = C.red; ctx.lineWidth = 3; rr(x - ts / 2 - 1.5, y - ts / 2 - 1.5, ts + 3, ts + 3, ts * 0.24); ctx.stroke(); }
+    const badge = (n, col) => { const bx = x + ts / 2 - 4, by = y - ts / 2 + 4; ctx.fillStyle = col; ctx.beginPath(); ctx.arc(bx, by, 10, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = C.card; ctx.lineWidth = 2; ctx.stroke(); ctx.fillStyle = '#fff'; ctx.font = `800 12px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(n), bx, by + 1); };
+    if (si >= 0) { ctx.strokeStyle = C.accent; ctx.lineWidth = 3; rr(x - ts / 2 - 2, y - ts / 2 - 2, ts + 4, ts + 4, ts * 0.25); ctx.stroke(); if (MODES[mode].ordered) badge(si + 1, C.accent); }
+    else if (hi >= 0) { ctx.globalAlpha = 0.6 + 0.4 * Math.sin(now * 7); ctx.strokeStyle = '#ffbf1f'; ctx.lineWidth = 4; rr(x - ts / 2 - 3, y - ts / 2 - 3, ts + 6, ts + 6, ts * 0.27); ctx.stroke(); ctx.globalAlpha = 1; if (MODES[mode].ordered) badge(hi + 1, '#f2a20c'); }
+    if (t.clock) { const cx = x - ts / 2 + 7, cy = y - ts / 2 + 7; ctx.fillStyle = C.clockBg; ctx.beginPath(); ctx.arc(cx, cy, 9, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = C.blue; ctx.lineWidth = 1.5; ctx.stroke(); drawIcon('clock', cx, cy, 13, C.blue); }
+  };
+  for (const t of tiles) if (t.alive && t.pop < 0) draw(t);
+  for (const t of tiles) if (t.pop >= 0) draw(t);
+}
+function drawPlay() {
+  ctx.save();
+  if (shake > 0) ctx.translate((Math.random() - 0.5) * 8 * shake / 0.25, (Math.random() - 0.5) * 4 * shake / 0.25);
+  drawHUD(); drawSlots(); drawBoard();
+  ctx.restore();
+  if (flash > 0) { ctx.fillStyle = `rgba(230,57,70,${flash * 0.35})`; ctx.fillRect(0, 0, W, H); }
+  if (state === 'play') {
+    const d = 52, g = 12, hw = clamp(W - 28 - d * 3 - g * 3, 90, 150), tot = d * 3 + hw + g * 3, by = H - 70;
+    let x = (W - tot) / 2;
+    button(x, by, d, d, '', () => { state = 'menu'; sel = []; }, 'round', 'home'); x += d + g;
+    button(x, by, d, d, '', shuffleBoard, 'round', 'shuffle'); x += d + g;
+    button(x, by, hw, d, '提示', useHint, 'primary', 'bulb', 'hint');
+    const bx = x + hw - 10, byy = by + 4; x += hw + g;
+    button(x, by, d, d, '', () => startLevel(level), 'round', 'restart');
+    ctx.fillStyle = hintsStock > 0 ? C.ink : C.faint; ctx.beginPath(); ctx.arc(bx, byy, 11, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = C.bg; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = C.inkText; ctx.font = `800 12px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(hintsStock), bx, byy + 1);
+  }
+}
+function drawFX() {
+  for (const p of particles) {
+    ctx.globalAlpha = clamp(p.life * 2, 0, 1); ctx.fillStyle = p.col;
+    if (p.cf) { const c = Math.cos(p.rot), s = Math.sin(p.rot); ctx.setTransform(DPR * c, DPR * s, -DPR * s * p.flip, DPR * c * p.flip, DPR * p.x, DPR * p.y); ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h); }
+    else if (p.star) { ctx.setTransform(DPR, 0, 0, DPR, 0, 0); starPath(p.x, p.y, p.r, p.rot); ctx.fill(); }
+    else { ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill(); }
+  }
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.globalAlpha = 1;
+  for (const f of floaters) {
+    ctx.globalAlpha = clamp(f.life * 2, 0, 1); ctx.fillStyle = f.col; ctx.font = `800 ${f.big ? 24 : 15}px ${f.big ? KFONT : FONT}`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineWidth = 4; ctx.lineJoin = 'round'; ctx.strokeStyle = C.card;
+    ctx.strokeText(f.text, f.x, f.y); ctx.fillText(f.text, f.x, f.y);
+  }
+  ctx.globalAlpha = 1;
+  if (toast) {
+    ctx.font = `14px ${FONT}`; const tw = Math.min(W - 24, ctx.measureText(toast.text).width + 36);
+    ctx.globalAlpha = clamp(toast.life * 3, 0, 1);
+    ctx.fillStyle = C.toast; rr(W / 2 - tw / 2, H - 122, tw, 36, 18); ctx.fill();
+    ctx.fillStyle = C.toastText; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(toast.text, W / 2, H - 104, tw - 20);
+    ctx.globalAlpha = 1;
+  }
+}
+
+// 主菜单：散落的淡色字块（缓存成一张图，只做整体缓慢漂移）
+const DECO = '字消云散成语诗词春风明月山水花鸟书画琴棋江河日月星辰';
+function drawLogo(x, y, s) {
+  ctx.save();
+  ctx.fillStyle = C.accentShadow; rr(x - s / 2, y - s / 2 + 4, s, s, s * 0.28); ctx.fill();
+  ctx.fillStyle = accentGrad(x - s / 2, y - s / 2, s, s); rr(x - s / 2, y - s / 2, s, s, s * 0.28); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,.2)'; rr(x - s * 0.38, y - s * 0.42, s * 0.76, s * 0.22, s * 0.11); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `700 ${Math.round(s * 0.62)}px ${KFONT}`; ctx.fillText('字', x, y + s * 0.03);
+  // 右上角小星光
+  ctx.fillStyle = '#ffe08a'; starPath(x + s * 0.5, y - s * 0.5, s * 0.13, 0.2); ctx.fill();
+  ctx.restore();
+}
+function drawMenu() {
+  if (!menuLayer) {
+    const M = 40, Ly = makeLayer(W + M * 2, H + M * 2), r = rngOf(42), sz = Math.max(40, Math.min(W, H) * 0.12);
+    withCtx(Ly.g, () => {
+      ctx.globalAlpha = C.deco; const n = Math.round((W + M * 2) * (H + M * 2) / (sz * sz * 6));
+      const chars = [...DECO];
+      for (let i = 0; i < n; i++) { const ch = chars[i % chars.length], s = sz * (0.7 + r() * 0.6);
+        const x = r() * (W + M * 2 - s), y = r() * (H + M * 2 - s), rot = (r() - 0.5) * 0.5;
+        ctx.save(); ctx.translate(x + s / 2, y + s / 2); ctx.rotate(rot); const sp = tileSprite(ch, hashStr(ch) % 8, Math.round(s)); ctx.drawImage(sp.c, -s / 2, -s / 2, sp.w, sp.h); ctx.restore(); }
+      ctx.globalAlpha = 1;
+    });
+    Ly.M = M; menuLayer = Ly;
+  }
+  ctx.drawImage(menuLayer.c, -menuLayer.M + Math.sin(now * 0.31) * 16, -menuLayer.M + Math.cos(now * 0.23) * 12, menuLayer.w, menuLayer.h);
+  const T = Math.min(52, W * 0.13), segW = Math.min(300, W - 56), bw2 = Math.min(280, W - 64);
+  const total = 72 + 18 + T + 16 + 22 + 30 + 34 + 44 + 26 + 28 + 60 + 6 + 40 + 18 + 78;
+  let y = Math.max(54, (H - 30 - total) / 2);
+  drawLogo(W / 2, y + 36, 72); y += 72 + 18;
+  const ty = y + T / 2; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `900 ${T}px ${FONT}`; ctx.lineJoin = 'round';
+  const title = '字消云散';
+  ctx.lineWidth = T * 0.2; ctx.strokeStyle = C.accent2; ctx.fillStyle = C.accent2; ctx.strokeText(title, W / 2 + 3, ty + 4); ctx.fillText(title, W / 2 + 3, ty + 4);
+  ctx.strokeStyle = C.card; ctx.strokeText(title, W / 2, ty);
+  ctx.fillStyle = C.text; ctx.fillText(title, W / 2, ty);
+  y += T + 16;
+  // 标题下：四个小字块依次跳动
+  const ds = 20, dg = 6, dx0 = W / 2 - (ds * 4 + dg * 3) / 2;
+  [...'连字成词'].forEach((ch, i) => { const j = Math.max(0, Math.sin(now * 4 - i * 0.7)) * 5; const sp = tileSprite(ch, (i * 2 + 1) % 8, ds); ctx.drawImage(sp.c, dx0 + i * (ds + dg), y - 2 - j, sp.w, sp.h); });
+  y += 22;
+  ctx.fillStyle = C.sub; ctx.font = `15px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('汉字消消乐 · 点字成词，一连就消', W / 2, y + 8); y += 30;
+  // 玩法标签
+  const tags = ['成语', '词语', '拼字', '诗句']; ctx.font = `600 12px ${FONT}`;
+  const tw = tags.map(t => ctx.measureText(t).width + 20), tt = tw.reduce((a, b) => a + b, 0) + 8 * 3; let tx = W / 2 - tt / 2;
+  tags.forEach((t, i) => { ctx.fillStyle = C.seg; rr(tx, y, tw[i], 24, 12); ctx.fill(); ctx.fillStyle = C.sub; ctx.textAlign = 'center'; ctx.fillText(t, tx + tw[i] / 2, y + 13); tx += tw[i] + 8; });
+  y += 34;
+  const sx = (W - segW) / 2, sh = 44, iw = (segW - 8) / 3;
+  ctx.fillStyle = C.seg; rr(sx, y, segW, sh, sh / 2); ctx.fill();
+  const kx = sx + 4 + segAnim * iw; ctx.fillStyle = C.shadow; rr(kx, y + 6, iw, sh - 8, (sh - 8) / 2); ctx.fill();
+  ctx.fillStyle = C.segOn; rr(kx, y + 4, iw, sh - 8, (sh - 8) / 2); ctx.fill();
+  DIFFS.forEach((D, i) => {
+    buttons.push({ x: sx + 4 + i * iw, y, w: iw, h: sh, key: 'd' + i, cb: () => setDiff(i) });
+    ctx.fillStyle = i === diff ? C.text : C.sub; ctx.font = `${i === diff ? 800 : 500} 15px ${FONT}`; ctx.textAlign = 'center';
+    ctx.fillText(D.name, sx + 4 + (i + 0.5) * iw, y + sh / 2 + 1);
+  });
+  y += sh + 10;
+  ctx.fillStyle = C.sub; ctx.font = `12px ${FONT}`; ctx.fillText(`${['从容慢品', '字块更多', '分秒必争'][diff]} · 点错扣 ${DIFFS[diff].pen} 秒 · 已到第 ${maxLevel} 关`, W / 2, y + 7); y += 16 + 28;
+  ctx.save(); const br = 1 + Math.sin(now * 3) * 0.012; ctx.translate(W / 2, y + 30); ctx.scale(br, br); ctx.translate(-W / 2, -y - 30);
+  button(W / 2 - bw2 / 2, y, bw2, 60, maxLevel > 1 ? `继续 · 第 ${maxLevel} 关` : '开始游戏', () => { score = 0; startLevel(maxLevel); }, 'primary', 'play', 'start');
+  ctx.restore(); y += 66;
+  if (maxLevel > 1) button(W / 2 - 80, y, 160, 40, '从第 1 关开始', () => { score = 0; startLevel(1); }, 'ghost', 'restart', 'from1');
+  y += 40 + 18;
+  const cw = Math.min(330, W - 40), cx0 = (W - cw) / 2; ctx.globalAlpha = 0.9; card(cx0, y, cw, 78, 18); ctx.globalAlpha = 1;
+  ctx.fillStyle = C.sub; ctx.font = `13px ${FONT}`; ctx.textAlign = 'center';
+  ctx.fillText('依次点字，连成词语 / 成语 / 诗句，或把部件拼成字', W / 2, y + 20);
+  ctx.fillText('消光所有字块即过关 · 点错扣时间，零失误三星', W / 2, y + 40);
+  ctx.font = `700 13px ${FONT}`; const bt = `最高分 ${best}`, btw = ctx.measureText(bt).width;
+  drawIcon('trophy', W / 2 - btw / 2 - 10, y + 60, 14, C.gold); ctx.fillStyle = C.text; ctx.fillText(bt, W / 2 + 8, y + 61);
+  ctx.fillStyle = C.faint; ctx.font = `11px ${FONT}`; ctx.fillText('受同类汉字消除玩法启发的非官方作品，与任何商业游戏无关', W / 2, H - 14);
+  button(W - 58, 12, 44, 44, '', () => setTheme(theme === 'dark' ? 'light' : 'dark'), 'round', theme === 'dark' ? 'sun' : 'moon', 'theme');
+}
+
+function panelGeom() { const pw = Math.min(330, W - 40), ph = 318; return { pw, ph, px: (W - pw) / 2, py: (H - ph) / 2 + 16 }; }
+function drawPanel(kind, title, sub, lines, btns) {
+  const age = now - panelAt, e = easeOutBack(clamp(age / 0.38, 0, 1));
+  ctx.fillStyle = C.dim; ctx.globalAlpha = clamp(age / 0.25, 0, 1); ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1;
+  const { pw, ph, px, py } = panelGeom();
+  ctx.save(); ctx.globalAlpha = clamp(age / 0.18, 0, 1);
+  ctx.translate(W / 2, py + ph / 2); ctx.scale(0.86 + 0.14 * e, 0.86 + 0.14 * e); ctx.translate(-W / 2, -py - ph / 2);
+  ctx.fillStyle = C.shadow; rr(px, py + 8, pw, ph, 26); ctx.fill(); ctx.fillStyle = C.panel; rr(px, py, pw, ph, 26); ctx.fill();
+  const g = ctx.createLinearGradient(W / 2 - 34, py - 34, W / 2 + 34, py + 34), cg = kind === 'win' ? ['#ffd166', '#f4a261'] : ['#ff8a8a', '#e63946'];
+  g.addColorStop(0, cg[0]); g.addColorStop(1, cg[1]);
+  ctx.fillStyle = C.panel; ctx.beginPath(); ctx.arc(W / 2, py, 40, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(W / 2, py, 33, 0, Math.PI * 2); ctx.fill();
+  drawIcon(kind === 'win' ? 'trophy' : 'clock', W / 2, py + 1, 34, '#fff');
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = C.text; ctx.font = `900 28px ${FONT}`; ctx.fillText(title, W / 2, py + 66);
+  sub(py);
+  ctx.fillStyle = C.sub; ctx.font = `14px ${FONT}`;
+  lines.forEach((l, i) => ctx.fillText(l, W / 2, py + 176 + i * 24, pw - 24));
+  ctx.restore();
+  const bw2 = (pw - 56) / 2;
+  btns.forEach((b, i) => button(px + 20 + i * (bw2 + 16), py + ph - 74, bw2, 52, b[0], b[1], i === btns.length - 1 ? 'primary' : 'card', b[2]));
+}
+const STAR_X = [-58, 0, 58], STAR_D = [0.3, 0.48, 0.66];
+let bgGrad = null;
+function render() {
+  buttons = [];
+  const k = W + ',' + H + ',' + theme;
+  if (k !== bgKey) { bgKey = k; bgGrad = ctx.createLinearGradient(0, 0, 0, H); bgGrad.addColorStop(0, C.bg); bgGrad.addColorStop(1, C.bg2); }
+  ctx.fillStyle = bgGrad; ctx.fillRect(0, 0, W, H);
+  if (state === 'menu') drawMenu();
+  else {
+    drawPlay();
+    if (state === 'win') {
+      drawPanel('win', '过关！', (py) => { const age = now - panelAt;
+          for (let i = 0; i < 3; i++) { const p = clamp((age - STAR_D[i]) / 0.32, 0, 1); drawStar(W / 2 + STAR_X[i], py + 122 - (i === 1 ? 6 : 0), i === 1 ? 26 : 21, i < lastResult.stars, p > 0 ? easeOutBack(p) : 0); } },
+        [`本关得分 ${levelScore}（时间奖励 +${lastResult.bonus}）`, `用时 ${lastResult.time.toFixed(1)} 秒 · 失误 ${lastResult.mistakes} 次 · 总分 ${score}`],
+        [['重玩', () => { score = Math.max(0, score - levelScore); startLevel(level); }, 'restart'], ['下一关', () => startLevel(level + 1), 'next']]);
+    } else if (state === 'lose') {
+      drawPanel('lose', '挑战失败', (py) => {
+          ctx.font = `700 15px ${FONT}`; const tw = ctx.measureText(loseReason).width + 32;
+          ctx.fillStyle = C.redSoft; rr(W / 2 - tw / 2, py + 102, tw, 32, 16); ctx.fill();
+          ctx.fillStyle = C.red; ctx.fillText(loseReason, W / 2, py + 119); },
+        ['下次会多给你一点时间～', `总分 ${score} · 最高分 ${best}`],
+        [['主页', () => { state = 'menu'; }, 'home'], ['再试一次', () => { score = Math.max(0, score - levelScore); startLevel(level); }, 'restart']]);
+    }
+  }
+  drawFX();
+}
+
+// ---------- 输入 ----------
+function tileAt(px, py) {
+  for (const t of tiles) {
+    if (!t.alive || t.pop >= 0) continue;
+    const [x, y] = tileXY(t);
+    if (Math.abs(px - x) <= cs / 2 && Math.abs(py - y) <= cs / 2) return t;
+  }
+  return null;
+}
+cv.addEventListener('pointerdown', e => {
+  e.preventDefault(); dirty = true;
+  unlockAudio();
+  const rc0 = cv.getBoundingClientRect(); const x = e.clientX - rc0.left, y = e.clientY - rc0.top;
+  for (const b of buttons) if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) { if (btnBusy) return; sfx.click(); pressK = b.key; pressAt = now; btnBusy = true;
+    setTimeout(() => { btnBusy = false; try { b.cb(); } finally { dirty = true; } }, 90); return; }
+  if (state === 'play') tapTile(tileAt(x, y));
+});
+cv.addEventListener('pointermove', e => {
+  if ((e.pointerType || 'mouse') !== 'mouse') return;
+  const mx = e.clientX - cvRect.left, my = e.clientY - cvRect.top;
+  let over = false; for (const b of buttons) if (mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) over = true;
+  if (!over && state === 'play' && tileAt(mx, my)) over = true;
+  cv.style.cursor = over ? 'pointer' : 'default';
+});
+addEventListener('keydown', e => {
+  if (state !== 'play') return;
+  if (e.key === 'h' || e.key === 'H') useHint();
+  else if (e.key === 'r' || e.key === 'R') startLevel(level);
+  else if (e.key === 's' || e.key === 'S') shuffleBoard();
+  else if (e.key === 'Escape' || e.key === 'Backspace') sel = [];
+  dirty = true;
+});
+addEventListener('resize', queueResize);
+addEventListener('orientationchange', queueResize);
+if (window.visualViewport) visualViewport.addEventListener('resize', queueResize);
+['gesturestart', 'gesturechange', 'dblclick'].forEach(t => document.addEventListener(t, e => e.preventDefault(), { passive: false }));
+document.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+['contextmenu', 'selectstart'].forEach(t => document.addEventListener(t, e => e.preventDefault()));
+window.__swStatus = 'unsupported';
+if ('serviceWorker' in navigator) {
+  window.__swStatus = 'pending';
+  const hadController = !!navigator.serviceWorker.controller; let reloading = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController || reloading) return; reloading = true; location.reload();
+  });
+  addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js', { scope: './' })
+      .then(r => { window.__swStatus = 'registered'; try { r.update(); } catch (e) {} return navigator.serviceWorker.ready; })
+      .then(() => { window.__swStatus = 'ready'; })
+      .catch(err => { window.__swStatus = 'error: ' + err.message; });
+  });
+}
+
+// ---------- 主循环（空闲降帧） ----------
+let last = performance.now(), lastRender = 0, rafId = 0, running = false, lastFrameAt = 0;
+function animating() {
+  if (particles.length || floaters.length || toast || slotFx || shake > 0 || flash > 0) return true;
+  if (pressK && now - pressAt < 0.22) return true;
+  if (segAnim !== diff) return true;
+  if (state !== 'play' && state !== 'menu' && now - panelAt < 1.3) return true;
+  if (state !== 'play') return false;
+  if (combo >= 2 && now - comboAt < 0.5) return true;
+  if (hintIds.length) return true;
+  for (const t of tiles) if (t.pop >= 0 || t.wrong > 0 || (t.alive && t.ry !== t.row)) return true;
+  return false;
+}
+function frame() {
+  if (!running) return;
+  const t = performance.now(); lastFrameAt = t;
+  const dt = Math.min(0.05, Math.max(0, (t - last) / 1000)); last = t;
+  update(dt);
+  const interval = animating() ? 0 : state === 'menu' ? 50 : state === 'play' ? (timeLeft / timeTotal <= 0.2 ? 50 : 100) : 250;
+  if (dirty || t - lastRender >= interval - 1) { render(); lastRender = t; dirty = false; }
+  rafId = requestAnimationFrame(frame);
+}
+function startLoop() { if (running) return; running = true; last = performance.now(); dirty = true; rafId = requestAnimationFrame(frame); }
+function stopLoop() { running = false; cancelAnimationFrame(rafId); }
+function unlockAudio() {
+  try {
+    if (!actx) { const AC = window.AudioContext || window.webkitAudioContext; if (AC) actx = new AC(); }
+    if (actx && actx.state !== 'running') { const pr = actx.resume(); if (pr && pr.catch) pr.catch(() => {}); }
+  } catch (err) {}
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) stopLoop();
+  else { resize(false); startLoop(); if (actx && actx.state !== 'running') unlockAudio(); }
+});
+addEventListener('pageshow', () => { resize(false); stopLoop(); startLoop(); });
+addEventListener('focus', () => { if (!document.hidden) startLoop(); });
+setInterval(() => { if (!document.hidden && running && performance.now() - lastFrameAt > 1500) { stopLoop(); startLoop(); } }, 1000);
+applyThemeChrome(); resize(true); startLoop();
+
+// ---------- 调试 / 测试接口 ----------
+window.__game = {
+  get state() { return state; }, get level() { return level; }, get left() { return aliveCount(); }, get score() { return score; },
+  get mistakes() { return mistakes; }, get mode() { return mode; }, get sel() { return sel.slice(); }, get groups() { return groups; },
+  get diff() { return diff; }, setDiff(d) { setDiff(d); }, get theme() { return theme; }, setTheme(t) { setTheme(t); }, get cs() { return cs; },
+  start(n) { score = 0; startLevel(n || 1); },
+  planIds() { const e = plan[0]; if (!e) return []; const used = new Set(), ids = [];
+    for (const c of e.chars) { const t = tiles.find(t => t.alive && t.pop < 0 && t.ch === c && !used.has(t.id)); if (!t) return []; used.add(t.id); ids.push(t.id); } return ids; },
+  wrongIds() { const a = tiles.filter(t => t.alive && t.pop < 0); for (let k = 0; k < 200; k++) { const pick = a.slice().sort(() => Math.random() - 0.5).slice(0, L); if (pick.length === L && !lookup(mode, pick.map(t => t.ch))) return pick.map(t => t.id); } return []; },
+  tileCenter(id) { const t = tiles[id]; const [x, y] = tileXY(t); return [x + cvRect.left, y + cvRect.top]; },
+  tap(id) { tapTile(tiles[id]); dirty = true; },
+  settled() { return !tiles.some(t => t.pop >= 0 || (t.alive && t.ry !== t.row)); },
+  dict() { const o = {}; for (const m in DICT) o[m] = DICT[m].list.length; return o; },
+  // 验证：题目来自词库、字数正确、且从开局状态用求解器能完整消光
+  validate(n, d) { const g = genLevel(n, d == null ? diff : d); const M = MODES[g.mode];
+    const okWords = g.answers.every(e => lookup(g.mode, e.chars) === e && e.chars.length === M.L);
+    const counts = new Map(); for (const c of g.chars) counts.set(c, (counts.get(c) || 0) + 1);
+    const t0 = performance.now(), sol = solve(g.mode, counts), ms = performance.now() - t0;
+    return { n, mode: g.mode, tiles: g.chars.length, cols: g.cols, rows: g.rows, okWords, solved: !!sol && sol.reduce((s, e) => s + e.chars.length, 0) === g.chars.length, ms, time: Math.round(g.time) }; }
+};
+})();
+</script>
+</body>
+</html>
